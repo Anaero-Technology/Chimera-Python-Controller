@@ -10,7 +10,7 @@ from threading import Thread
 import datetime
 import numpy
 import math
-import os, sys, pathlib
+import os, pathlib
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -60,11 +60,7 @@ class MainWindow(tkinter.Frame):
 
         #Add calibrate button
         self.calibrateButton = tkinter.Button(self, text="Calibrate", state="disabled", command=self.calibratePressed)
-        self.calibrateButton.grid(row=4, column=0, columnspan=2, sticky="NESW")
-
-        #Add time set button
-        self.timeButton = tkinter.Button(self, text="Set Time", state="disabled", command=self.setTimePressed)
-        self.timeButton.grid(row=4, column=2, columnspan=2, sticky="NESW")
+        self.calibrateButton.grid(row=4, column=0, columnspan=4, sticky="NESW")
 
         #Add a frame to put the list of files into
         self.fileFrame = tkinter.Frame(self, bg="#FFFFFF")
@@ -99,7 +95,7 @@ class MainWindow(tkinter.Frame):
         self.calibrationFrame.grid(row=2, rowspan=2, column=0, columnspan=4, sticky="NESW")
         self.calibrationFrame.grid_columnconfigure(0, weight=5)
         self.calibrationFrame.grid_columnconfigure(1, weight=1)
-        for r in range(0, 5):
+        for r in range(0, 6):
             self.calibrationFrame.grid_rowconfigure(r, weight=1)
 
         #Canvases to hold graphs for calibrations
@@ -126,6 +122,10 @@ class MainWindow(tkinter.Frame):
         #Button to change which channels are being tested
         self.openServiceButton = tkinter.Button(self.calibrationFrame, text="Set Channels In Service", command=self.openServicePressed)
         self.openServiceButton.grid(row=4, column=1, sticky="NESW")
+
+        #Add time set button
+        self.timeButton = tkinter.Button(self.calibrationFrame, text="Set Time", command=self.setTimePressed)
+        self.timeButton.grid(row=5, column=0, columnspan=2, sticky="NESW")
         
         #Frame to hold the current data for each channel as it is received
         self.viewFrame = tkinter.Frame(self)
@@ -827,7 +827,7 @@ class MainWindow(tkinter.Frame):
                 pass
 
             self.calibrateButton.configure(state="normal")
-            self.timeButton.configure(state="normal")
+            #self.timeButton.configure(state="normal")
             
             #No longer waiting for a response
             self.awaiting = False
@@ -862,6 +862,7 @@ class MainWindow(tkinter.Frame):
                 self.calibrating = False
                 #Return to main view
                 self.switchToView()
+                self.fileTogglePressed()
             
             #Time was set successfully
             if messageParts[1] == "timeset":
@@ -927,6 +928,7 @@ class MainWindow(tkinter.Frame):
                 if messageParts[2] == "notcalibrating":
                     self.calibrating = False
                     self.switchToView()
+                    self.fileTogglePressed()
             
             if messageParts[1] == "timingset":
                 if messageParts[2] == "noopen":
