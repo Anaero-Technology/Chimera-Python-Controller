@@ -566,7 +566,7 @@ class MainWindow(tkinter.Frame):
             found = ["No Port Selected"]
             descs = [""]
             #Scan to find all available ports
-            portData = list_ports.comports()
+            portData = list_ports.comports(include_links=True)
             #Iterate through ports
             for data in portData:
                 #Add the device name of the port to the list (can be used to connect to it)
