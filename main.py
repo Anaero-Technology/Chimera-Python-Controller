@@ -415,6 +415,9 @@ class MainWindow(tkinter.Frame):
         #Perform a first time scan
         self.performScan(target = initialTarget)
 
+        #If the file display is currently open
+        self.filesOpen = False
+
         #Perfom setup and set down of files to correctly size all elements
         self.setupFiles(self.files, True)
         self.setdownFiles()
@@ -444,9 +447,6 @@ class MainWindow(tkinter.Frame):
         #Extra data points to show peak of sensor readings and 4 before
         self.ch4DebugData = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
         self.co2DebugData = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-        #If the file display is currently open
-        self.filesOpen = False
 
         #List of accepted characters for file names as a string
         self.acceptedChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz-_"
@@ -648,24 +648,17 @@ class MainWindow(tkinter.Frame):
                 self.awaiting = True
 
 
-    def fileTogglePressed(self) -> None:
+    def askForFiles(self) -> None:
         '''Ask the esp32 for the list of held files'''
-        #If opening the files
-        if not self.filesOpen:
-            #If there is a connection
-            if self.connected and self.serialConnection != None:
-                #If not waiting for a response
-                if not self.awaiting:
-                    self.files = []
-                    self.fileSizes = []
-                    #Ask for the list of files
-                    self.serialConnection.write("files\n".encode("utf-8"))
-                    self.awaiting = True
-            else:
-                messagebox.showinfo(title="Not Connected", message="You must be connected to a port to access the files.")
-        else:
-            #Close the files section
-            self.setdownFiles()
+        #If there is a connection
+        if self.connected and self.serialConnection != None:
+            #If not waiting for a response
+            if not self.awaiting:
+                self.files = []
+                self.fileSizes = []
+                #Ask for the list of files
+                self.serialConnection.write("files\n".encode("utf-8"))
+                self.awaiting = True
 
     def deletePressed(self) -> None:
         '''Delete the currently selected file from the memory'''
@@ -833,7 +826,7 @@ class MainWindow(tkinter.Frame):
             self.awaiting = False
             #Cycle the files so they are up to date
             self.setdownFiles()
-            self.fileTogglePressed()
+            self.askForFiles()
         
         #If an action has been successfully performed
         if len(messageParts) > 1 and messageParts[0] == "done":
@@ -849,7 +842,7 @@ class MainWindow(tkinter.Frame):
                 #Show message that files were deleted
                 messagebox.showinfo(title="File Deleted", message="File was deleted sucessfully.")
                 self.setdownFiles()
-                self.fileTogglePressed()
+                self.askForFiles()
             
             #Finished entering calibration mode
             if messageParts[1] == "startcal":
@@ -862,7 +855,7 @@ class MainWindow(tkinter.Frame):
                 self.calibrating = False
                 #Return to main view
                 self.switchToView()
-                self.fileTogglePressed()
+                self.askForFiles()
             
             #Time was set successfully
             if messageParts[1] == "timeset":
@@ -928,7 +921,7 @@ class MainWindow(tkinter.Frame):
                 if messageParts[2] == "notcalibrating":
                     self.calibrating = False
                     self.switchToView()
-                    self.fileTogglePressed()
+                    self.askForFiles()
             
             if messageParts[1] == "timingset":
                 if messageParts[2] == "noopen":
@@ -1872,6 +1865,8 @@ class MainWindow(tkinter.Frame):
 
     def setupFiles(self, fileNames : list, first = False) -> None:
         '''Set up the scrollable button section of each file given a list of file names'''
+        if self.filesOpen:
+            self.setdownFiles()
         self.filesOpen = True
         #Create canvas and scroll bar
         self.fileCanvas = tkinter.Canvas(self.fileFrame, bg="#FFFFFF")
