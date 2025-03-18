@@ -10,7 +10,9 @@ from threading import Thread
 import datetime
 import numpy
 import math
-import os, pathlib
+import os, pathlib, sys
+import notifypy
+from PIL import Image, ImageTk
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -478,6 +480,13 @@ class MainWindow(tkinter.Frame):
 
         #Information about each valve being opened or closed
         self.valveStates = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+
+    def pathTo(self, path : str) -> str:
+        '''Convert local path to compiled or directory path'''
+        try:
+            return os.path.join(sys._MEIPASS, path)
+        except:
+            return os.path.join(os.path.abspath("."), path)
         
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
@@ -2043,6 +2052,9 @@ if __name__ == "__main__":
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
+    ico = Image.open(window.pathTo("images/icon.png"))
+    photo = ImageTk.PhotoImage(ico)
+    root.wm_iconphoto(True, photo)
     #If the window is attempted to be closed, call the close window function
     root.protocol("WM_DELETE_WINDOW", window.closeWindow)
     #Start running the root
