@@ -280,30 +280,31 @@ class MainWindow(tkinter.Frame):
             if currentColumn > 4:
                 currentColumn = 0
                 currentRow = currentRow + 2
-        
-        self.timingsLabel = tkinter.Label(self.configureFrame, text="Timings", font=self.largeFont)
-        self.timingsLabel.grid(row=4, column=2, columnspan=2, sticky="NESW")
-        self.timingOpenInputFrame = tkinter.Frame(self.configureFrame)
-        self.timingOpenInputFrame.grid(row=5, column=2, sticky="NESW")
+        self.timingsFrame = tkinter.Frame(self.configureFrame)
+        self.timingsFrame.grid(row=4, column=2, columnspan=2, rowspan=4,)
+        self.timingsLabel = tkinter.Label(self.timingsFrame, text="Timings", font=self.largeFont)
+        self.timingsLabel.pack(pady=3)
+        self.timingOpenInputFrame = tkinter.Frame(self.timingsFrame)
+        self.timingOpenInputFrame.pack(pady=3)
         self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time:", font=self.mediumFont)
         self.openTimeEntry = tkinter.Entry(self.timingOpenInputFrame, font=self.mediumFont)
-        self.timingFlushInputFrame = tkinter.Frame(self.configureFrame)
-        self.timingFlushInputFrame.grid(row=6, column=2, sticky="NESW")
+        self.timingFlushInputFrame = tkinter.Frame(self.timingsFrame)
+        self.timingFlushInputFrame.pack(pady=3)
         self.flushTimeingLabel = tkinter.Label(self.timingFlushInputFrame, text="Flush Time:", font=self.mediumFont)
         self.flushTimeEntry = tkinter.Entry(self.timingFlushInputFrame, font=self.mediumFont)
-        self.openTimingLabel.pack(side="left", anchor="center", fill="x")
-        self.openTimeEntry.pack(side="left", anchor="center", fill="x")
-        self.flushTimeingLabel.pack(side="left", anchor="center", fill="x")
-        self.flushTimeEntry.pack(side="left", anchor="center", fill="x")
+        self.openTimingLabel.pack(side="left", anchor="center", fill="x", pady=3)
+        self.openTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
+        self.flushTimeingLabel.pack(side="left", anchor="center", fill="x", pady=3)
+        self.flushTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
         #Button to change the timings between open and close
-        self.updateTimingsButton = tkinter.Button(self.configureFrame, text="Update Timings", command=self.updateTimingPressed, font=self.mediumFont)
-        self.updateTimingsButton.grid(row=7, column=2, columnspan=2)
+        self.updateTimingsButton = tkinter.Button(self.timingsFrame, text="Update Timings", command=self.updateTimingPressed, font=self.mediumFont)
+        self.updateTimingsButton.pack(pady=3)
 
         self.currentClockTimeLabel = tkinter.Label(self.configureFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.mediumFont)
-        self.currentClockTimeLabel.grid(row=9, column=2)
+        self.currentClockTimeLabel.grid(row=9, column=2, pady=10)
         #Add time set button
         self.timeButton = tkinter.Button(self.configureFrame, text="Update Current Time", command=self.setTimePressed, font=self.mediumFont)
-        self.timeButton.grid(row=9, column=3)
+        self.timeButton.grid(row=9, column=3, pady=10)
 
         self.endConfigureButton = tkinter.Button(self.configureFrame, text="Done", font=self.largeFont, command=self.endConfigurePressed)
         self.endConfigureButton.grid(row=8, column=0, columnspan=2, rowspan=2)
@@ -1330,7 +1331,7 @@ class MainWindow(tkinter.Frame):
         if len(messageParts) > 30 and messageParts[0] == "pastdata":
             try:
                 #Iterate through channels
-                for channel in range(0, 15):
+                for channel in range(0, 16):
                     #Get values from device
                     ch4 = int(messageParts[(channel * 2) + 1])
                     co2 = int(messageParts[(channel * 2) + 2])
