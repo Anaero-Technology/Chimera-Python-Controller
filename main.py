@@ -36,6 +36,8 @@ class MainWindow(tkinter.Frame):
         #Icons loaded from files
         self.gearIcon = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
         self.fileIcon = tkinter.PhotoImage(file=self.pathTo("images/filePresent.png"))
+        self.crossIcon = tkinter.PhotoImage(file=self.pathTo("images/cross.png"))
+        self.tickIcon = tkinter.PhotoImage(file=self.pathTo("images/tick.png"))
 
         #Setup colours to use for different ui elements
         self.defaultColour = self.cget("bg")
@@ -325,11 +327,36 @@ class MainWindow(tkinter.Frame):
         #Canvases to hold graphs for calibrations
         self.ch4CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCh4, master=self.configureFrame)
         self.ch4CalCanvas.get_tk_widget().grid(row=1, column=0, columnspan=2)
+        self.setupValueEntryCh4PointFrame = tkinter.Frame(self.configureFrame)
+        self.setupValueEntryCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupValueEntryCh4PointLabel = tkinter.Label(self.setupValueEntryCh4PointFrame, text="Percent:", font=self.fonts["medium"])
+        self.setupValueEntryCh4PointLabel.pack(side="left", anchor="center")
+        self.setupValueEntryCh4PointEntry = tkinter.Entry(self.setupValueEntryCh4PointFrame, width=4, font=self.fonts["medium"])
+        self.setupValueEntryCh4PointEntry.pack(side="left", anchor="center")
+        self.setupValueEntryCh4PointAcceptButton = tkinter.Button(self.setupValueEntryCh4PointFrame, image=self.tickIcon, command="")
+        self.setupValueEntryCh4PointAcceptButton.pack(side="left", anchor="center", padx=5)
+        self.setupValueEntryCh4PointCancelButton = tkinter.Button(self.setupValueEntryCh4PointFrame, image=self.crossIcon, command="")
+        self.setupValueEntryCh4PointCancelButton.pack(side="left", anchor="center", padx=5)
+        self.setupCh4PointFrame = tkinter.Frame(self.configureFrame)
+        #------#self.setupCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupCh4PointFrame.grid_rowconfigure(0, weight=1)
+        self.setupCh4PointFrame.grid_columnconfigure(0, weight=1)
+        self.setupCh4PointFrame.grid_columnconfigure(1, weight=1)
+        self.setupCh4PointFrame.grid_columnconfigure(2, weight=1)
+        self.automaticCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Automatic", font=self.fonts["medium"], command="")
+        self.automaticCh4PointButton.grid(row=0, column=0)
+        self.manualCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Manual", font=self.fonts["medium"], command="")
+        self.manualCh4PointButton.grid(row=0, column=1)
+        self.cancelCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Cancel", font=self.fonts["medium"], command="")
+        self.cancelCh4PointButton.grid(row=0, column=2)
+        self.addCh4PointButtonFrame = tkinter.Frame(self.configureFrame)
+        #------#self.addCh4PointButtonFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
         #Buttons to allow for points to be added to calibration curves
-        self.addPointCh4Button = tkinter.Button(self.configureFrame, text="+ Add Point", command=self.addPointCh4Pressed, font=self.fonts["medium"])
+        self.addPointCh4Button = tkinter.Button(self.addCh4PointButtonFrame, text="+ Add Point", command=self.addPointCh4Pressed, font=self.fonts["medium"])
         self.addPointCh4Button.grid(row=3, column=0, columnspan=2)
+
         #Buttons to allow for calibration values to be sent to the device
-        self.calculateCh4Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=False: self.openCalculation(x), font=self.fonts["medium"])
+        self.calculateCh4Button = tkinter.Button(self.configureFrame, text="Configure Calibration", command=lambda x=False: self.openCalculation(x), font=self.fonts["medium"])
         self.calculateCh4Button.grid(row=4, column=0, columnspan=2)
         #Label to mark carbon dioxide section
         self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.fonts["large"])
@@ -338,7 +365,7 @@ class MainWindow(tkinter.Frame):
         self.co2CalCanvas.get_tk_widget().grid(row=6, column=0, columnspan=2)
         self.addPointCo2Button = tkinter.Button(self.configureFrame, text="+ Add Point", command=self.addPointCo2Pressed, font=self.fonts["medium"])
         self.addPointCo2Button.grid(row=7, column=0, columnspan=2)
-        self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=True: self.openCalculation(x), font=self.fonts["medium"])
+        self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure Calibration", command=lambda x=True: self.openCalculation(x), font=self.fonts["medium"])
         self.calculateCo2Button.grid(row=8, column=0, columnspan=2)
         #Label to act as header for channel service configuration section
         self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
