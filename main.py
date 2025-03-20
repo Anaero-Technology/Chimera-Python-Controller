@@ -31,9 +31,7 @@ class MainWindow(tkinter.Frame):
         self.redTextColour = "#FF3333"
 
         #Fonts
-        self.hugeFont = ("", 22)
-        self.largeFont = ("", 18)
-        self.mediumFont = ("", 14)
+        self.fonts = {"huge":("", 22), "large":("", 18), "medium":("", 14), "small":("",10), "small-bold":("", 10, "bold")}
 
         #Icons
         self.gearIcon = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
@@ -144,7 +142,7 @@ class MainWindow(tkinter.Frame):
         self.connectButtonsFrame = tkinter.Frame(self.connectFrame)
         self.connectButtonsFrame.pack(expand=True)
 
-        self.connectInfoLabel = tkinter.Label(self.connectButtonsFrame, text="Select port to connect to Chimera", font=self.hugeFont)
+        self.connectInfoLabel = tkinter.Label(self.connectButtonsFrame, text="Select port to connect to Chimera", font=self.fonts["huge"])
         self.connectInfoLabel.pack(side="top", anchor="center", pady=20)
 
         self.connectInternalFrame = tkinter.Frame(self.connectButtonsFrame)
@@ -154,12 +152,12 @@ class MainWindow(tkinter.Frame):
         self.selectedPort = tkinter.StringVar()
         self.selectedPort.set("Port 1")
         self.portOption = tkinter.OptionMenu(self.connectInternalFrame, self.selectedPort, "Port 1", "Port 2", "Port 3", "Port 4")
-        self.parent.nametowidget(self.portOption.menuname).configure(font=self.largeFont)
-        self.portOption.configure(font=self.largeFont)
+        self.parent.nametowidget(self.portOption.menuname).configure(font=self.fonts["large"])
+        self.portOption.configure(font=self.fonts["large"])
         self.portOption.pack(side="left", anchor="center", fill="x", padx=10)
 
         #Add connect button
-        self.connectButton = tkinter.Button(self.connectInternalFrame, text="Connect", command=self.connectPressed, font=self.largeFont)
+        self.connectButton = tkinter.Button(self.connectInternalFrame, text="Connect", command=self.connectPressed, font=self.fonts["large"])
         self.connectButton.pack(side="left", anchor="center", fill="x", padx=10)
 
         #Button colours
@@ -190,7 +188,7 @@ class MainWindow(tkinter.Frame):
             reactorName = "Reactor {0}".format(i + 1)
             if i == 15:
                 reactorName = "Flush"
-            display["label"] = tkinter.Label(display["frame"], text=reactorName, font=("", 10, "bold"))
+            display["label"] = tkinter.Label(display["frame"], text=reactorName, font=self.fonts["small-bold"])
             display["label"].grid(row=0, column=0, columnspan=2, sticky="NESW")
 
             #Methane and CO2 display labels for text and percentage
@@ -230,15 +228,15 @@ class MainWindow(tkinter.Frame):
         self.timingViewFrame.grid(row=4, column=0, columnspan=8, sticky="NESW")
         self.timingInternalFrame = tkinter.Frame(self.timingViewFrame)
         self.timingInternalFrame.pack(expand=True)
-        self.openTimeLabel = tkinter.Label(self.timingInternalFrame, text="Open Time: {0}s".format(self.currentOpen), font=self.mediumFont)
+        self.openTimeLabel = tkinter.Label(self.timingInternalFrame, text="Open Time: {0}s".format(self.currentOpen), font=self.fonts["medium"])
         self.openTimeLabel.pack(anchor="center", side="left", fill="x")
         self.timingSpacerOne = tkinter.Frame(self.timingInternalFrame, width=20)
         self.timingSpacerOne.pack(anchor="center", side="left", fill="x")
-        self.flushTimeLabel = tkinter.Label(self.timingInternalFrame, text="Flush Time: {0}s".format(self.currentFlush), font=self.mediumFont)
+        self.flushTimeLabel = tkinter.Label(self.timingInternalFrame, text="Flush Time: {0}s".format(self.currentFlush), font=self.fonts["medium"])
         self.flushTimeLabel.pack(anchor="center", side="left", fill="x")
         self.timingSpacerTwo = tkinter.Frame(self.timingInternalFrame, width=20)
         self.timingSpacerTwo.pack(anchor="center", side="left", fill="x")
-        self.currentTimeInfoButton = tkinter.Button(self.timingInternalFrame, text="Currently Waiting", font=self.mediumFont, command=self.openValveWindow)
+        self.currentTimeInfoButton = tkinter.Button(self.timingInternalFrame, text="Currently Waiting", font=self.fonts["medium"], command=self.openValveWindow)
         self.currentTimeInfoButton.pack(anchor="center", side="left", fill="x")
 
         self.viewOptionsButtonsFrame = tkinter.Frame(self.viewFrame)
@@ -248,10 +246,10 @@ class MainWindow(tkinter.Frame):
         self.viewOptionsButtonsFrame.grid_columnconfigure(1, weight=1)
 
         #Add calibrate button
-        self.configureButton = tkinter.Button(self.viewOptionsButtonsFrame, text="Configure Chimera", image=self.gearIcon, compound="top", command=self.configurePressed, font=self.mediumFont)
+        self.configureButton = tkinter.Button(self.viewOptionsButtonsFrame, text="Configure Chimera", image=self.gearIcon, compound="top", command=self.configurePressed, font=self.fonts["medium"])
         self.configureButton.grid(row=0, column=0)
 
-        self.fileViewButton = tkinter.Button(self.viewOptionsButtonsFrame, text="View Files", image=self.fileIcon, compound="top", command=self.viewFilesPressed, font=self.mediumFont)
+        self.fileViewButton = tkinter.Button(self.viewOptionsButtonsFrame, text="View Files", image=self.fileIcon, compound="top", command=self.viewFilesPressed, font=self.fonts["medium"])
         self.fileViewButton.grid(row=0, column=1)
 
         #Window to display graphs of the peak values from the sensor
@@ -265,7 +263,7 @@ class MainWindow(tkinter.Frame):
         self.graphWindow.grid_columnconfigure(0, weight=1)
         
         #Label to show title
-        self.graphWindowHeaderLabel = tkinter.Label(self.graphWindow, text="Channel - Data Points", font=("", 15))
+        self.graphWindowHeaderLabel = tkinter.Label(self.graphWindow, text="Channel - Data Points", font=self.fonts["medium"])
         self.graphWindowHeaderLabel.grid(row=0, column=0, columnspan=2, sticky="NESW")
 
         #Plots for the CH4 and CO2 to be displayed
@@ -327,10 +325,10 @@ class MainWindow(tkinter.Frame):
         for col in range(0, 4):
             self.configureFrame.grid_columnconfigure(col, weight=1)
 
-        self.ch4ConfigLabel = tkinter.Label(self.configureFrame, text="Methane", font=self.largeFont)
+        self.ch4ConfigLabel = tkinter.Label(self.configureFrame, text="Methane", font=self.fonts["large"])
         self.ch4ConfigLabel.grid(row=0, column=0, columnspan=2, sticky="NESW")
 
-        self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.largeFont)
+        self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.fonts["large"])
         self.co2ConfigLabel.grid(row=4, column=0, columnspan=2, sticky="NESW")
 
         #Canvases to hold graphs for calibrations
@@ -351,8 +349,11 @@ class MainWindow(tkinter.Frame):
         self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=True: self.openCalculation(x))
         self.calculateCo2Button.grid(row=7, column=1, sticky="NESW")
 
+        self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
+        self.enabledValvesLabel.grid(row=0, column=2, columnspan=2, sticky="NESW")
+
         self.enabledValvesFrame = tkinter.Frame(self.configureFrame)
-        self.enabledValvesFrame.grid(row=0, column=2, columnspan=2, rowspan=3, sticky="NESW")
+        self.enabledValvesFrame.grid(row=1, column=2, columnspan=2, rowspan=2, sticky="NESW")
         for row in range(0, 6):
             self.enabledValvesFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 5):
@@ -362,9 +363,9 @@ class MainWindow(tkinter.Frame):
         currentColumn = 0
         currentRow = 1
         for i in range(0, 15):
-            label = tkinter.Label(self.enabledValvesFrame, text="Channel {0}".format(i + 1), font=("", 10))
+            label = tkinter.Label(self.enabledValvesFrame, text="{0}".format(i + 1), font=self.fonts["small-bold"])
             label.grid(row=currentRow - 1, column=currentColumn)
-            button = tkinter.Button(self.enabledValvesFrame, text="Enabled", fg=self.greenTextColour, command=lambda x=i : self.toggleServicePressed(x))
+            button = tkinter.Button(self.enabledValvesFrame, text="Enabled", bg=self.selectedButtonColour, command=lambda x=i : self.toggleServicePressed(x), font=self.fonts["small"])
             button.grid(row=currentRow, column=currentColumn)
             currentColumn = currentColumn + 1
             if currentColumn > 4:
@@ -374,31 +375,31 @@ class MainWindow(tkinter.Frame):
         
         self.timingsFrame = tkinter.Frame(self.configureFrame)
         self.timingsFrame.grid(row=4, column=2, columnspan=2, rowspan=4,)
-        self.timingsLabel = tkinter.Label(self.timingsFrame, text="Timings", font=self.largeFont)
+        self.timingsLabel = tkinter.Label(self.timingsFrame, text="Timings", font=self.fonts["large"])
         self.timingsLabel.pack(pady=3)
         self.timingOpenInputFrame = tkinter.Frame(self.timingsFrame)
         self.timingOpenInputFrame.pack(pady=3)
-        self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time:", font=self.mediumFont)
-        self.openTimeEntry = tkinter.Entry(self.timingOpenInputFrame, font=self.mediumFont)
+        self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time:", font=self.fonts["medium"])
+        self.openTimeEntry = tkinter.Entry(self.timingOpenInputFrame, font=self.fonts["medium"], width=5, justify="center")
         self.timingFlushInputFrame = tkinter.Frame(self.timingsFrame)
         self.timingFlushInputFrame.pack(pady=3)
-        self.flushTimeingLabel = tkinter.Label(self.timingFlushInputFrame, text="Flush Time:", font=self.mediumFont)
-        self.flushTimeEntry = tkinter.Entry(self.timingFlushInputFrame, font=self.mediumFont)
+        self.flushTimeingLabel = tkinter.Label(self.timingFlushInputFrame, text="Flush Time:", font=self.fonts["medium"])
+        self.flushTimeEntry = tkinter.Entry(self.timingFlushInputFrame, font=self.fonts["medium"], width=5, justify="center")
         self.openTimingLabel.pack(side="left", anchor="center", fill="x", pady=3)
         self.openTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
         self.flushTimeingLabel.pack(side="left", anchor="center", fill="x", pady=3)
         self.flushTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
         #Button to change the timings between open and close
-        self.updateTimingsButton = tkinter.Button(self.timingsFrame, text="Update Timings", command=self.updateTimingPressed, font=self.mediumFont)
+        self.updateTimingsButton = tkinter.Button(self.timingsFrame, text="Update Timings", command=self.updateTimingPressed, font=self.fonts["medium"])
         self.updateTimingsButton.pack(pady=3)
 
-        self.currentClockTimeLabel = tkinter.Label(self.configureFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.mediumFont)
+        self.currentClockTimeLabel = tkinter.Label(self.configureFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.fonts["medium"])
         self.currentClockTimeLabel.grid(row=8, column=2, pady=15)
         #Add time set button
-        self.timeButton = tkinter.Button(self.configureFrame, text="Update Current Time", command=self.setTimePressed, font=self.mediumFont)
+        self.timeButton = tkinter.Button(self.configureFrame, text="Update Current Time", command=self.setTimePressed, font=self.fonts["medium"])
         self.timeButton.grid(row=8, column=3, pady=15)
 
-        self.endConfigureButton = tkinter.Button(self.configureFrame, text="Close Configuration", font=self.largeFont, command=self.endConfigurePressed)
+        self.endConfigureButton = tkinter.Button(self.configureFrame, text="Close Configuration", font=self.fonts["large"], command=self.endConfigurePressed)
         self.endConfigureButton.grid(row=9, column=2, columnspan=2, rowspan=2, pady=15)
 
         #New window to display point calculations and allow for calibration entry
@@ -410,25 +411,25 @@ class MainWindow(tkinter.Frame):
         for c in range(0, 7):
             self.calculationsWindow.grid_columnconfigure(c, weight=1)
         #Heading text
-        self.calculationsWindowHeader = tkinter.Label(self.calculationsWindow, text="Methane Calculations", font=("", 15))
+        self.calculationsWindowHeader = tkinter.Label(self.calculationsWindow, text="Methane Calculations", font=self.fonts["medium"])
         self.calculationsWindowHeader.grid(row=0, column=0, columnspan=9, sticky="NESW")
         #String variables to store current text in calibration entries
         self.calValues = [tkinter.StringVar(), tkinter.StringVar(), tkinter.StringVar(), tkinter.StringVar()]
         #Entries to display calibration values
-        self.entryThree = tkinter.Entry(self.calculationsWindow, font=("", 12), textvariable=self.calValues[3], width=9, justify="right")
+        self.entryThree = tkinter.Entry(self.calculationsWindow, font=self.fonts["small"], textvariable=self.calValues[3], width=9, justify="right")
         self.entryThree.grid(row=1, column=0, sticky="NESW")
-        self.entryTwo = tkinter.Entry(self.calculationsWindow, font=("", 12), textvariable=self.calValues[2], width=9, justify="right")
+        self.entryTwo = tkinter.Entry(self.calculationsWindow, font=self.fonts["small"], textvariable=self.calValues[2], width=9, justify="right")
         self.entryTwo.grid(row=1, column=2, sticky="NESW")
-        self.entryOne = tkinter.Entry(self.calculationsWindow, font=("", 12), textvariable=self.calValues[1], width=9, justify="right")
+        self.entryOne = tkinter.Entry(self.calculationsWindow, font=self.fonts["small"], textvariable=self.calValues[1], width=9, justify="right")
         self.entryOne.grid(row=1, column=4, sticky="NESW")
-        self.entryZero = tkinter.Entry(self.calculationsWindow, font=("", 12), textvariable=self.calValues[0], width=9, justify="right")
+        self.entryZero = tkinter.Entry(self.calculationsWindow, font=self.fonts["small"], textvariable=self.calValues[0], width=9, justify="right")
         self.entryZero.grid(row=1, column=6, sticky="NESW")
         #Labels to display mathematical usage of values as part of a polynomial
-        self.labelThree = tkinter.Label(self.calculationsWindow, font=("", 12), text="x^3 +")
+        self.labelThree = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="x^3 +")
         self.labelThree.grid(row=1, column=1, sticky="NESW")
-        self.labelTwo = tkinter.Label(self.calculationsWindow, font=("", 12), text="x^2 +")
+        self.labelTwo = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="x^2 +")
         self.labelTwo.grid(row=1, column=3, sticky="NESW")
-        self.labelOne = tkinter.Label(self.calculationsWindow, font=("", 12), text="x +")
+        self.labelOne = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="x +")
         self.labelOne.grid(row=1, column=5, sticky="NESW")
 
         #List of labels used to display calibration points once they have been captured
@@ -457,7 +458,7 @@ class MainWindow(tkinter.Frame):
             self.filesFrame.grid_columnconfigure(col, weight=1)
 
         self.sdCardString = "SD Card: {0}/{1}MB {2}% Full"
-        self.sdCardInfoLabel = tkinter.Label(self.filesFrame, text="SD Card: 0/0MB 0% Used", font=self.mediumFont)
+        self.sdCardInfoLabel = tkinter.Label(self.filesFrame, text="SD Card: 0/0MB 0% Used", font=self.fonts["medium"])
         self.sdCardInfoLabel.grid(row=0, column=0, columnspan=10, sticky="NESW")
 
         #Add a frame to put the list of files into
@@ -469,18 +470,18 @@ class MainWindow(tkinter.Frame):
         self.separatorButton.grid(row=8, column=0)
 
         #Add label for selected file name
-        self.fileLabel = tkinter.Label(self.filesFrame, text="No file selected", font=self.mediumFont)
+        self.fileLabel = tkinter.Label(self.filesFrame, text="No file selected", font=self.fonts["medium"])
         self.fileLabel.grid(row=8, column=1, columnspan=3, sticky="NESW")
 
         #Add download file button
-        self.downloadFileButton = tkinter.Button(self.filesFrame, text="Download", state="disabled", command=self.downloadPressed, font=self.mediumFont)
+        self.downloadFileButton = tkinter.Button(self.filesFrame, text="Download", state="disabled", command=self.downloadPressed, font=self.fonts["medium"])
         self.downloadFileButton.grid(row=8, column=4, columnspan=2, sticky="NESW")
 
         #Add delete file button
-        self.deleteFileButton = tkinter.Button(self.filesFrame, text="Delete", state="disabled", command=self.deletePressed, font=self.mediumFont)
+        self.deleteFileButton = tkinter.Button(self.filesFrame, text="Delete", state="disabled", command=self.deletePressed, font=self.fonts["medium"])
         self.deleteFileButton.grid(row=8, column=6, columnspan=2, sticky="NESW")
 
-        self.closeFileButton = tkinter.Button(self.filesFrame, text="Close Files", command=self.closeFileView, font=self.mediumFont)
+        self.closeFileButton = tkinter.Button(self.filesFrame, text="Close Files", command=self.closeFileView, font=self.fonts["medium"])
         self.closeFileButton.grid(row=8, column=8, columnspan=2, sticky="NESW")
         
         #Get the style object for the parent window
@@ -764,8 +765,9 @@ class MainWindow(tkinter.Frame):
         '''Enter or exit calibration mode and send message to gas sensor accordingly'''
         if self.connected and not self.awaiting:
             if not self.calibrating:
-                self.serialConnection.write("startcal\n".encode("utf-8"))
                 self.serialConnection.write("timeget\n".encode("utf-8"))
+                self.serialConnection.write("timingget\n".encode("utf-8"))
+                self.serialConnection.write("startcal\n".encode("utf-8"))
                 self.awaiting = True
                 self.calibrationUpdated = False
     
@@ -1637,7 +1639,7 @@ class MainWindow(tkinter.Frame):
             for i in range(0, len(self.co2Percentages)):
                 if i < len(self.co2Values):
                     #Create label to display value
-                    item = tkinter.Label(self.calculationsWindow, font=("", 12), text="{0}% : {1}".format(self.co2Percentages[i], self.co2Values[i]))
+                    item = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="{0}% : {1}".format(self.co2Percentages[i], self.co2Values[i]))
                     item.grid(row=i + 3, column=0, columnspan=9, sticky="NESW")
                     self.tempLabels.append(item)
         #Displaying methane
@@ -1663,7 +1665,7 @@ class MainWindow(tkinter.Frame):
             for i in range(0, len(self.ch4Percentages)):
                 if i < len(self.ch4Values):
                     #Create label to display value
-                    item = tkinter.Label(self.calculationsWindow, font=("", 12), text="{0}% : {1}".format(self.ch4Percentages[i], self.ch4Values[i]))
+                    item = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="{0}% : {1}".format(self.ch4Percentages[i], self.ch4Values[i]))
                     item.grid(row=i + 3, column=0, columnspan=9, sticky="NESW")
                     self.tempLabels.append(item)
         
@@ -1797,12 +1799,12 @@ class MainWindow(tkinter.Frame):
     def updateServiceDisplays(self) -> None:
         for index in range(0, min(len(self.enabledButtons), len(self.currentService), len(self.percentageViews))):
             if self.currentService[index]:
-                self.enabledButtons[index].configure(text="Enabled", fg=self.greenTextColour)
+                self.enabledButtons[index].configure(text="Enabled", bg=self.selectedButtonColour)
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.defaultButtonColour)
                 self.percentageViews[index]["frame"].configure(bg=self.defaultButtonColour)
             else:
-                self.enabledButtons[index].configure(text="Disabled", fg=self.redTextColour)
+                self.enabledButtons[index].configure(text="Disabled", bg=self.redTextColour)
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.darkenedColour)
                 self.percentageViews[index]["frame"].configure(bg=self.darkenedColour)
@@ -2086,7 +2088,7 @@ class MainWindow(tkinter.Frame):
             if fileNames[nameId] == self.currentTimeFileName:
                 fontColour = self.blueTextColour
             #Create a button and add it to the list
-            button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x), font=self.mediumFont, fg=fontColour)
+            button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x), font=self.fonts["medium"], fg=fontColour)
             #If this is the file currently being used
             if fileNames[nameId] == self.currentFileName:
                 #Display it's name in blue
