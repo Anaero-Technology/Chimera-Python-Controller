@@ -136,6 +136,8 @@ class MainWindow(tkinter.Frame):
         #Current working file on esp
         self.currentFileName = ""
 
+        self.currentTimeFileName = ""
+
         """Connection Frame"""
         self.connectFrame = tkinter.Frame(self)
 
@@ -464,25 +466,32 @@ class MainWindow(tkinter.Frame):
         for col in range(0, 10):
             self.filesFrame.grid_columnconfigure(col, weight=1)
 
+        self.sdCardString = "SD Card: {0}/{1}MB {2}% Full"
+        self.sdCardInfoLabel = tkinter.Label(self.filesFrame, text="SD Card: 0/0MB 0% Used", font=self.mediumFont)
+        self.sdCardInfoLabel.grid(row=0, column=0, columnspan=10, sticky="NESW")
+
         #Add a frame to put the list of files into
         self.fileListFrame = tkinter.Frame(self.filesFrame, bg="#FFFFFF")
-        self.fileListFrame.grid(row=0, column=0, columnspan=10, rowspan=7, sticky="NESW")
+        self.fileListFrame.grid(row=1, column=0, columnspan=10, rowspan=7, sticky="NESW")
 
         #Add button to open separator settings
         self.separatorButton = tkinter.Button(self.filesFrame, image=self.gearIcon, command=self.openSeparators)
         self.separatorButton.grid(row=8, column=0)
 
         #Add label for selected file name
-        self.fileLabel = tkinter.Label(self.filesFrame, text="No file selected")
-        self.fileLabel.grid(row=8, column=2, columnspan=4, sticky="NESW")
+        self.fileLabel = tkinter.Label(self.filesFrame, text="No file selected", font=self.mediumFont)
+        self.fileLabel.grid(row=8, column=1, columnspan=3, sticky="NESW")
 
         #Add download file button
-        self.downloadFileButton = tkinter.Button(self.filesFrame, text="Download", state="disabled", command=self.downloadPressed)
-        self.downloadFileButton.grid(row=8, column=6, columnspan=2, sticky="NESW")
+        self.downloadFileButton = tkinter.Button(self.filesFrame, text="Download", state="disabled", command=self.downloadPressed, font=self.mediumFont)
+        self.downloadFileButton.grid(row=8, column=4, columnspan=2, sticky="NESW")
 
         #Add delete file button
-        self.deleteFileButton = tkinter.Button(self.filesFrame, text="Delete", state="disabled", command=self.deletePressed)
-        self.deleteFileButton.grid(row=8, column=8, columnspan=2, sticky="NESW")
+        self.deleteFileButton = tkinter.Button(self.filesFrame, text="Delete", state="disabled", command=self.deletePressed, font=self.mediumFont)
+        self.deleteFileButton.grid(row=8, column=6, columnspan=2, sticky="NESW")
+
+        self.closeFileButton = tkinter.Button(self.filesFrame, text="Close Files", command=self.closeFileView, font=self.mediumFont)
+        self.closeFileButton.grid(row=8, column=8, columnspan=2, sticky="NESW")
         
         #Get the style object for the parent window
         self.styles = Style(self.parent)
@@ -777,6 +786,7 @@ class MainWindow(tkinter.Frame):
     
     def viewFilesPressed(self) -> None:
         if self.connected and not self.awaiting:
+            self.serialConnection.write("timeget\n".encode("utf-8"))
             self.askForFiles()
             self.awaitingFiles = True
             self.awaiting = True
@@ -1214,9 +1224,7 @@ class MainWindow(tkinter.Frame):
                 total = int(total / 100000) / 10
                 #Calculate the used memory in MegaBytes
                 used = int(used / 100000) / 10
-                #Display the memory usage and display it
-                message = "Port " + self.connectedPort + " " + str(used) + "/" + str(total) + "MB (" + str(percentage) + "%)"
-                #self.openPortLabel.configure(text=message)
+                self.sdCardInfoLabel.configure(text=self.sdCardString.format(used, total, percentage))
             except:
                 #If something went wrong (not an integer) do not update the memory
                 pass
@@ -1400,6 +1408,9 @@ class MainWindow(tkinter.Frame):
                 minute = int(timeParts[4])
                 second = int(timeParts[5])
                 self.currentClockTimeLabel.configure(text="Current: {0}:{1}:{2} {3}/{4}/{5}".format(hour, minute, second, day, month, year))
+                if month < 9:
+                    month = "0" + str(month)
+                self.currentTimeFileName = "eventLog_{0}{1}.csv".format(year, month)
             except:
                 if self.connected and self.serialConnection != None:
                     self.serialConnection.write("timeget\n".encode("utf-8"))
@@ -2049,6 +2060,11 @@ class MainWindow(tkinter.Frame):
         #Close the file
         settingsFile.close()
 
+    def closeFileView(self) -> None:
+        if not self.awaiting and not self.downloading:
+            self.changeMainFrame(1)
+            self.setdownFiles()
+
     def setupFiles(self, fileNames : list, first = False) -> None:
         '''Set up the scrollable button section of each file given a list of file names'''
         if self.filesOpen:
@@ -2084,8 +2100,11 @@ class MainWindow(tkinter.Frame):
                     sizePart = str(int(size / 1000)) + "KB"
                 else:
                     sizePart = str(size) + "B"
+            fontColour = self.blackTextColour
+            if fileNames[nameId] == self.currentTimeFileName:
+                fontColour = self.blueTextColour
             #Create a button and add it to the list
-            button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x))
+            button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x), font=self.mediumFont, fg=fontColour)
             #If this is the file currently being used
             if fileNames[nameId] == self.currentFileName:
                 #Display it's name in blue
@@ -2217,9 +2236,9 @@ class MainWindow(tkinter.Frame):
                 else:
                     self.parent.destroy()
             elif self.currentMain == 2:
-                self.changeMainFrame(1)
+                self.endConfigurePressed()
             elif self.currentMain == 3:
-                self.changeMainFrame(1)
+                self.closeFileView()
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
