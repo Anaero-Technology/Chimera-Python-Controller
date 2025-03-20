@@ -56,6 +56,85 @@ class MainWindow(tkinter.Frame):
         self.methaneOpen = False
         self.carbonDioxideOpen = False
 
+        #The message that is being read
+        self.currentMessage = ""
+        #A list of messages that were previously read but not processed yet
+        self.receivedMessages = []
+        #If waiting for a response from the esp32 (possibly add a timeout)
+        self.awaiting = False
+        self.downloading = False
+
+        self.percentageValue = 0
+        #Percentage values entered from known gas concentrations
+        self.ch4Percentages = []
+        self.co2Percentages = []
+        #Used for calibration point values
+        self.ch4Values = []
+        self.co2Values = []
+        #Results from regression of points
+        self.ch4Regression = []
+        self.co2Regression = []
+        #Points to be displayed on calibration graphs
+        self.co2PlotPoints = [[], []]
+        self.ch4PlotPoints = [[], []]
+
+        #Extra data points to show peak of sensor readings and 4 before
+        self.ch4DebugData = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+        self.co2DebugData = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+
+        #List of accepted characters for file names as a string
+        self.acceptedChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz-_"
+
+        #Name of file being saved to
+        self.fileNameToSave = ""
+        #Information being saved to the file
+        self.fileDataToSave = ""
+
+        #If still waiting for first response
+        self.awaitingCommunication = False
+        #Timeout timers
+        self.timesTried = 0
+        self.timeoutAttempts = 10
+
+        #Valid file save types
+        self.fileTypes = [("CSV Files", "*.csv")]
+
+        #Values to store for the progress of a download
+        self.downloadedCharacters = 0
+        self.charactersToDownload = 0
+
+        #Line position in current file
+        self.currentLine = 0
+
+        #Calibration values currently in gas sensor - and if they have been updated recently
+        self.storedCalibration = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
+        self.calibrationUpdated = False
+
+        #Information about each valve being opened or closed
+        self.valveStates = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+
+        #If the device is currently connected
+        self.connected = False
+        #Current connected port name
+        self.connectedPort = ""
+        #Index of currently selected file
+        self.selectedFile = -1
+
+        #Object to hold serial connection to port
+        self.serialConnection = None
+
+        self.calibrating = False
+
+        #List of available port names
+        self.portLabels = []
+
+        #List of available files (for testing)
+        self.files = ["File Number 1", "File Number 2"]
+        self.fileSizes = []
+
+        #Current working file on esp
+        self.currentFileName = ""
+
         """Connection Frame"""
         self.connectFrame = tkinter.Frame(self)
 
@@ -372,6 +451,13 @@ class MainWindow(tkinter.Frame):
         """Files Frame"""
         self.filesFrame = tkinter.Frame(self)
 
+        #Setup parts for the scrolling canvas
+        self.fileCanvas = None
+        self.fileScroll = None
+        self.fileGridFrame = None
+        self.fileButtons = []
+        self.fileCanvasWindow = None
+
         for row in range(0, 8):
             self.filesFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 10):
@@ -474,35 +560,6 @@ class MainWindow(tkinter.Frame):
         self.viewFrame.grid(row=0, column=0, sticky="NESW")
         self.connectFrame.grid(row=0, column=0, sticky="NESW")
 
-        #Setup parts for the scrolling canvas
-        self.fileCanvas = None
-        self.fileScroll = None
-        self.fileGridFrame = None
-        self.fileButtons = []
-        self.fileCanvasWindow = None
-
-        #If the device is currently connected
-        self.connected = False
-        #Current connected port name
-        self.connectedPort = ""
-        #Index of currently selected file
-        self.selectedFile = -1
-
-        #Object to hold serial connection to port
-        self.serialConnection = None
-
-        self.calibrating = False
-
-        #List of available port names
-        self.portLabels = []
-
-        #List of available files (for testing)
-        self.files = ["File Number 1", "File Number 2"]
-        self.fileSizes = []
-
-        #Current working file on esp
-        self.currentFileName = ""
-
         #Perform a first time scan
         self.performScan(target = initialTarget)
 
@@ -512,63 +569,6 @@ class MainWindow(tkinter.Frame):
         #Perfom setup and set down of files to correctly size all elements
         self.setupFiles(self.files, True)
         self.setdownFiles()
-
-        #The message that is being read
-        self.currentMessage = ""
-        #A list of messages that were previously read but not processed yet
-        self.receivedMessages = []
-        #If waiting for a response from the esp32 (possibly add a timeout)
-        self.awaiting = False
-        self.downloading = False
-
-        self.percentageValue = 0
-        #Percentage values entered from known gas concentrations
-        self.ch4Percentages = []
-        self.co2Percentages = []
-        #Used for calibration point values
-        self.ch4Values = []
-        self.co2Values = []
-        #Results from regression of points
-        self.ch4Regression = []
-        self.co2Regression = []
-        #Points to be displayed on calibration graphs
-        self.co2PlotPoints = [[], []]
-        self.ch4PlotPoints = [[], []]
-
-        #Extra data points to show peak of sensor readings and 4 before
-        self.ch4DebugData = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-        self.co2DebugData = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-        #List of accepted characters for file names as a string
-        self.acceptedChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz-_"
-
-        #Name of file being saved to
-        self.fileNameToSave = ""
-        #Information being saved to the file
-        self.fileDataToSave = ""
-
-        #If still waiting for first response
-        self.awaitingCommunication = False
-        #Timeout timers
-        self.timesTried = 0
-        self.timeoutAttempts = 10
-
-        #Valid file save types
-        self.fileTypes = [("CSV Files", "*.csv")]
-
-        #Values to store for the progress of a download
-        self.downloadedCharacters = 0
-        self.charactersToDownload = 0
-
-        #Line position in current file
-        self.currentLine = 0
-
-        #Calibration values currently in gas sensor - and if they have been updated recently
-        self.storedCalibration = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
-        self.calibrationUpdated = False
-
-        #Information about each valve being opened or closed
-        self.valveStates = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
 
         self.valveUpdateThread = Thread(target=self.updateValveInfoButton, daemon=True)
 
@@ -1439,7 +1439,7 @@ class MainWindow(tkinter.Frame):
                     self.deleteFileButton.configure(state="normal")
                     self.fileButtons[index].configure(bg=self.selectedButtonColour)
 
-    def disconnectPressed(self) -> None:
+    def disconnect(self) -> None:
         '''Close connection to port'''
         #If there is a connection and there is not data to be recieved
         if self.connected and not self.awaiting:
@@ -1806,30 +1806,6 @@ class MainWindow(tkinter.Frame):
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.darkenedColour)
                 self.percentageViews[index]["frame"].configure(bg=self.darkenedColour)
-
-    def openServicePressed(self) -> None:
-        '''When asked to open the in service window'''
-        #Check device is connected and not doing something else
-        if self.connected and self.calibrating and not self.awaiting:
-            self.awaiting = True
-            #Make a request for the service data fromt the device
-            self.serialConnection.write("serviceget\n".encode("utf-8"))
-    
-    def openServiceWindow(self) -> None:
-        '''Open the service window'''
-        #Iterate through channels
-        for i in range(0, 15):
-            #Set up buttons based on in service state of channels
-            if self.currentService[i]:
-                self.serviceChannelItems[i]["button"].configure(text="Enabled", fg=self.greenTextColour)
-            else:
-                self.serviceChannelItems[i]["button"].configure(text="Disabled", fg=self.redTextColour)
-        #Open the window
-        self.serviceWindow.deiconify()
-
-    def closeService(self) -> None:
-        '''Close the service window'''
-        self.serviceWindow.withdraw()
 
     def toggleServicePressed(self, channel) -> None:
         '''When a service toggle button is pressed'''
@@ -2230,7 +2206,7 @@ class MainWindow(tkinter.Frame):
                 self.parent.destroy()
             elif self.currentMain == 1:
                 if self.connected and self.serialConnection != None:
-                    self.disconnectPressed()
+                    self.disconnect()
                 else:
                     self.parent.destroy()
             elif self.currentMain == 2:
