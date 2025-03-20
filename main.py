@@ -17,7 +17,7 @@ import time
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
-    def __init__(self, parent, initialTarget = None, *args, **kwargs) -> None:
+    def __init__(self, parent, *args, **kwargs) -> None:
         #Setup parent configuration
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
@@ -33,15 +33,16 @@ class MainWindow(tkinter.Frame):
         #Fonts
         self.fonts = {"huge":("", 22), "large":("", 18), "medium":("", 14), "small":("",10), "small-bold":("", 10, "bold")}
 
-        #Icons
+        #Icons loaded from files
         self.gearIcon = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
         self.fileIcon = tkinter.PhotoImage(file=self.pathTo("images/filePresent.png"))
 
-        #Get the default background colour and create a highlighted colour
+        #Setup colours to use for different ui elements
         self.defaultColour = self.cget("bg")
         self.selectedColour = "#AADDAA"
         self.methaneColour = "#7799FF"
         self.carbonColour = "#FF7777"
+        self.darkenedColour = "#777777"
 
         self.lastEvent = time.time()
         self.currentValve = -1
@@ -111,6 +112,8 @@ class MainWindow(tkinter.Frame):
 
         #Information about each valve being opened or closed
         self.valveStates = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+        #Which channels are currently in service
+        self.currentService = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
 
         #If the device is currently connected
         self.connected = False
@@ -121,7 +124,7 @@ class MainWindow(tkinter.Frame):
 
         #Object to hold serial connection to port
         self.serialConnection = None
-
+        #Whether or not the device is in calibration mode
         self.calibrating = False
 
         #List of available port names
@@ -133,21 +136,20 @@ class MainWindow(tkinter.Frame):
 
         #Current working file on esp
         self.currentFileName = ""
-
+        #Current file based on device time
         self.currentTimeFileName = ""
 
         """Connection Frame"""
         self.connectFrame = tkinter.Frame(self)
-
+        #Frame to keep all elements in the center
         self.connectButtonsFrame = tkinter.Frame(self.connectFrame)
         self.connectButtonsFrame.pack(expand=True)
-
+        #Text label to prompt user
         self.connectInfoLabel = tkinter.Label(self.connectButtonsFrame, text="Select port to connect to Chimera", font=self.fonts["huge"])
         self.connectInfoLabel.pack(side="top", anchor="center", pady=20)
-
+        #Frame to hold buttons horizonally centered
         self.connectInternalFrame = tkinter.Frame(self.connectButtonsFrame)
         self.connectInternalFrame.pack(side="top", anchor="center")
-
         #Setup port drop down (with debug values)
         self.selectedPort = tkinter.StringVar()
         self.selectedPort.set("Port 1")
@@ -155,11 +157,9 @@ class MainWindow(tkinter.Frame):
         self.parent.nametowidget(self.portOption.menuname).configure(font=self.fonts["large"])
         self.portOption.configure(font=self.fonts["large"])
         self.portOption.pack(side="left", anchor="center", fill="x", padx=10)
-
         #Add connect button
         self.connectButton = tkinter.Button(self.connectInternalFrame, text="Connect", command=self.connectPressed, font=self.fonts["large"])
         self.connectButton.pack(side="left", anchor="center", fill="x", padx=10)
-
         #Button colours
         self.defaultButtonColour = self.connectButton.cget("bg")
         self.selectedButtonColour = "#70D070"
@@ -171,7 +171,6 @@ class MainWindow(tkinter.Frame):
             self.viewFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 8):
             self.viewFrame.grid_columnconfigure(col, weight=1)
-
         #List of objects representing each display area for channel results
         self.percentageViews = []
         #Iterate all channels
@@ -191,68 +190,72 @@ class MainWindow(tkinter.Frame):
             display["label"] = tkinter.Label(display["frame"], text=reactorName, font=self.fonts["small-bold"])
             display["label"].grid(row=0, column=0, columnspan=2, sticky="NESW")
 
-            #Methane and CO2 display labels for text and percentage
+            #Methane text percentage and link to graph
             display["ch4Text"] = tkinter.Label(display["frame"], text="75%")
             display["ch4Text"].grid(row=1, column=0, padx=1, sticky="NESW")
             display["ch4Text"].bind("<Button-1>", lambda event,x=i:self.methanePointsPressed(x))
+            #Frame to hold bar
             display["ch4Out"] = tkinter.Frame(display["frame"])
             display["ch4Out"].grid(row=2, column=0, padx=1, sticky="NESW")
+            #Methane bar
             display["ch4Bar"] = tkinter.Frame(display["ch4Out"])
             display["ch4Bar"].place(rely=0.25, relheight=0.75, relwidth=1.0)
+            #Button within bar for apprearance
             display["ch4ViewButton"] = tkinter.Button(display["ch4Bar"], command=lambda x=i:self.methanePointsPressed(x), bg=self.methaneColour)
             display["ch4ViewButton"].pack(expand=True, fill="both")
+            #Label text for methane
             display["ch4"] = tkinter.Label(display["frame"], text="CH4")
             display["ch4"].grid(row=3, column=0, padx=1, sticky="NESW")
 
+            #Carbon dioxide text percentage and link to graph
             display["co2Text"] = tkinter.Label(display["frame"], text="25%")
             display["co2Text"].grid(row=1, column=1, padx=1, sticky="NESW")
             display["co2Text"].bind("<Button-1>", lambda event,x=i:self.carbonPointsPressed(x))
+            #Frame to hold bar
             display["co2Out"] = tkinter.Frame(display["frame"])
             display["co2Out"].grid(row=2, column=1, padx=1, sticky="NESW")
+            #Carbon dioxide bar
             display["co2Bar"] = tkinter.Frame(display["co2Out"])
             display["co2Bar"].place(rely=0.75, relheight=0.25, relwidth=1.0)
+            #Button within bar for appearance
             display["co2ViewButton"] = tkinter.Button(display["co2Bar"], command=lambda x=i:self.carbonPointsPressed(x), bg=self.carbonColour)
             display["co2ViewButton"].pack(expand=True, fill="both")
+            #Label text for carbon dioxide
             display["co2"] = tkinter.Label(display["frame"], text="CO2")
             display["co2"].grid(row=3, column=1, padx=1, sticky="NESW")
-            #Button to display points in peak
+            #Add to list of objects
             self.percentageViews.append(display)
-        
-        #Add to view grid in correct place for each
-        for i in range(0, 16):
+            #Find correct position and place on screen
             r = i // 8
             c = i - (r * 8)
-            self.percentageViews[i]["frame"].grid(row=r * 2, column=c, rowspan=2, sticky="NESW")
-
+            display["frame"].grid(row=r * 2, column=c, rowspan=2, sticky="NESW")
+        #Frame to hold information about event timing
         self.timingViewFrame = tkinter.Frame(self.viewFrame)
         self.timingViewFrame.grid(row=4, column=0, columnspan=8, sticky="NESW")
+        #Internal frame to hold widgets centered
         self.timingInternalFrame = tkinter.Frame(self.timingViewFrame)
         self.timingInternalFrame.pack(expand=True)
+        #Label to display time open
         self.openTimeLabel = tkinter.Label(self.timingInternalFrame, text="Open Time: {0}s".format(self.currentOpen), font=self.fonts["medium"])
-        self.openTimeLabel.pack(anchor="center", side="left", fill="x")
-        self.timingSpacerOne = tkinter.Frame(self.timingInternalFrame, width=20)
-        self.timingSpacerOne.pack(anchor="center", side="left", fill="x")
+        self.openTimeLabel.pack(anchor="center", side="left", padx=10, fill="x")
         self.flushTimeLabel = tkinter.Label(self.timingInternalFrame, text="Flush Time: {0}s".format(self.currentFlush), font=self.fonts["medium"])
-        self.flushTimeLabel.pack(anchor="center", side="left", fill="x")
-        self.timingSpacerTwo = tkinter.Frame(self.timingInternalFrame, width=20)
-        self.timingSpacerTwo.pack(anchor="center", side="left", fill="x")
+        self.flushTimeLabel.pack(anchor="center", side="left", padx=10, fill="x")
         self.currentTimeInfoButton = tkinter.Button(self.timingInternalFrame, text="Currently Waiting", font=self.fonts["medium"], command=self.openValveWindow)
-        self.currentTimeInfoButton.pack(anchor="center", side="left", fill="x")
-
+        self.currentTimeInfoButton.pack(anchor="center", side="left", padx=10, fill="x")
+        #Frame to hold buttons to access other windows
         self.viewOptionsButtonsFrame = tkinter.Frame(self.viewFrame)
         self.viewOptionsButtonsFrame.grid(row=5, column=0, rowspan=2, columnspan=8, sticky="NESW")
         self.viewOptionsButtonsFrame.grid_rowconfigure(0, weight=1)
         self.viewOptionsButtonsFrame.grid_columnconfigure(0, weight=1)
         self.viewOptionsButtonsFrame.grid_columnconfigure(1, weight=1)
-
-        #Add calibrate button
+        #Add configure button
         self.configureButton = tkinter.Button(self.viewOptionsButtonsFrame, text="Configure Chimera", image=self.gearIcon, compound="top", command=self.configurePressed, font=self.fonts["medium"])
         self.configureButton.grid(row=0, column=0)
-
+        #Add files button
         self.fileViewButton = tkinter.Button(self.viewOptionsButtonsFrame, text="View Files", image=self.fileIcon, compound="top", command=self.viewFilesPressed, font=self.fonts["medium"])
         self.fileViewButton.grid(row=0, column=1)
 
-        #Window to display graphs of the peak values from the sensor
+        """Graph Window""" #Window to display graphs of the peak values from the sensor
         self.graphWindow = tkinter.Toplevel(self)
         self.graphWindow.title("Sensor Reading Overview")
         self.graphWindow.geometry("450x400")
@@ -261,25 +264,21 @@ class MainWindow(tkinter.Frame):
         self.graphWindow.grid_rowconfigure(0, weight=1)
         self.graphWindow.grid_rowconfigure(1, weight=10)
         self.graphWindow.grid_columnconfigure(0, weight=1)
-        
         #Label to show title
         self.graphWindowHeaderLabel = tkinter.Label(self.graphWindow, text="Channel - Data Points", font=self.fonts["medium"])
         self.graphWindowHeaderLabel.grid(row=0, column=0, columnspan=2, sticky="NESW")
-
-        #Plots for the CH4 and CO2 to be displayed
+        #Plot for the points to be displayed
         self.debugFigure = Figure(figsize=(5, 5), dpi=100)
         self.debugPlot = self.debugFigure.add_subplot(111)
         self.debugPlot.set_title("Methane")
         self.debugCanvas = FigureCanvasTkAgg(self.debugFigure, master=self.graphWindow)
         self.debugCanvas.get_tk_widget().grid(row=1, column=0)
-        
         #Widthdraw the window
         self.closeGraph()
 
-        #Which channels are currently in service
-        self.currentService = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
-
-        #Window to display which valves are open right now
+        """Valve Window""" #Window to display which valves are open right now
+        #The valve window is not currently visible
+        self.valveWindowOpen = False
         self.valveWindow = tkinter.Toplevel(self)
         self.valveWindow.title("Valve Display")
         self.valveWindow.protocol("WM_DELETE_WINDOW", self.closeValveWindow)
@@ -293,13 +292,10 @@ class MainWindow(tkinter.Frame):
 
         """Configure Frame"""
         self.configureFrame = tkinter.Frame(self)
-
+        #Calculate default colour as matplotlib colour, convert to 0-1 range by dividing by 65535 (16 bit maximum)
         self.graphBackground = list(self.winfo_rgb(self.defaultButtonColour))
         for i in range(0, len(self.graphBackground)):
             self.graphBackground[i] = self.graphBackground[i] / 65535
-        
-        self.darkenedColour = "#777777"
-
         #Graph to show methane calibration points
         self.calibrationFigureCh4 = Figure(figsize=(5, 5), dpi=100)
         self.calibrationFigureCh4.set_size_inches(3.5, 2)
@@ -309,7 +305,6 @@ class MainWindow(tkinter.Frame):
         self.ch4CalPlot.set_ylim(1000, 2000)
         self.ch4CalPlot.set_facecolor(self.graphBackground)
         self.calibrationFigureCh4.set_facecolor(self.graphBackground)
-
         #Graph to show carbon dioxide calibration points
         self.calibrationFigureCo2 = Figure(figsize=(5, 5), dpi=100)
         self.calibrationFigureCo2.set_size_inches(3.5, 2)
@@ -319,90 +314,92 @@ class MainWindow(tkinter.Frame):
         self.co2CalPlot.set_ylim(1000, 2000)
         self.co2CalPlot.set_facecolor(self.graphBackground)
         self.calibrationFigureCo2.set_facecolor(self.graphBackground)
-
+        #Grid setup
         for row in range(0, 9):
             self.configureFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 4):
             self.configureFrame.grid_columnconfigure(col, weight=1)
-
+        #Label to mark methane section
         self.ch4ConfigLabel = tkinter.Label(self.configureFrame, text="Methane", font=self.fonts["large"])
         self.ch4ConfigLabel.grid(row=0, column=0, columnspan=2, sticky="NESW")
-
+        #Label to mark carbon dioxide section
         self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.fonts["large"])
         self.co2ConfigLabel.grid(row=4, column=0, columnspan=2, sticky="NESW")
-
         #Canvases to hold graphs for calibrations
         self.ch4CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCh4, master=self.configureFrame)
         self.ch4CalCanvas.get_tk_widget().grid(row=1, column=0, columnspan=2, rowspan=2)
         self.co2CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCo2, master=self.configureFrame)
         self.co2CalCanvas.get_tk_widget().grid(row=5, column=0, columnspan=2, rowspan=2)
-
         #Buttons to allow for points to be added to calibration curves
         self.addPointCh4Button = tkinter.Button(self.configureFrame, text="Add Point", command=self.addPointCh4Pressed)
         self.addPointCh4Button.grid(row=3, column=0, sticky="NESW")
         self.addPointCo2Button = tkinter.Button(self.configureFrame, text="Add Point", command=self.addPointCo2Pressed)
         self.addPointCo2Button.grid(row=7, column=0, sticky="NESW")
-
         #Buttons to allow for calibration values to be sent to the device
         self.calculateCh4Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=False: self.openCalculation(x))
         self.calculateCh4Button.grid(row=3, column=1, sticky="NESW")
         self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=True: self.openCalculation(x))
         self.calculateCo2Button.grid(row=7, column=1, sticky="NESW")
-
+        #Label to act as header for channel service configuration section
         self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
         self.enabledValvesLabel.grid(row=0, column=2, columnspan=2, sticky="NESW")
-
+        #Frame to hold buttons and labels for in service
         self.enabledValvesFrame = tkinter.Frame(self.configureFrame)
         self.enabledValvesFrame.grid(row=1, column=2, columnspan=2, rowspan=2, sticky="NESW")
         for row in range(0, 6):
             self.enabledValvesFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 5):
             self.enabledValvesFrame.grid_columnconfigure(col, weight=1)
-        
+        #List to hold buttons so they can be reconfigured later
         self.enabledButtons = []
         currentColumn = 0
         currentRow = 1
         for i in range(0, 15):
+            #Create label and button with link to callback for the toggle being pressed
             label = tkinter.Label(self.enabledValvesFrame, text="{0}".format(i + 1), font=self.fonts["small-bold"])
             label.grid(row=currentRow - 1, column=currentColumn)
             button = tkinter.Button(self.enabledValvesFrame, text="Enabled", bg=self.selectedButtonColour, command=lambda x=i : self.toggleServicePressed(x), font=self.fonts["small"])
             button.grid(row=currentRow, column=currentColumn)
+            #Increment positioning
             currentColumn = currentColumn + 1
             if currentColumn > 4:
                 currentColumn = 0
                 currentRow = currentRow + 2
             self.enabledButtons.append(button)
-        
+        #Frame to hold all the timing information
         self.timingsFrame = tkinter.Frame(self.configureFrame)
         self.timingsFrame.grid(row=4, column=2, columnspan=2, rowspan=4,)
+        #Heading text
         self.timingsLabel = tkinter.Label(self.timingsFrame, text="Timings", font=self.fonts["large"])
         self.timingsLabel.pack(pady=3)
+        #Frames to hold the open and flush time parts centered
         self.timingOpenInputFrame = tkinter.Frame(self.timingsFrame)
         self.timingOpenInputFrame.pack(pady=3)
-        self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time:", font=self.fonts["medium"])
-        self.openTimeEntry = tkinter.Entry(self.timingOpenInputFrame, font=self.fonts["medium"], width=5, justify="center")
         self.timingFlushInputFrame = tkinter.Frame(self.timingsFrame)
         self.timingFlushInputFrame.pack(pady=3)
+        #Label and entry for open and flush time
+        self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time:", font=self.fonts["medium"])
+        self.openTimeEntry = tkinter.Entry(self.timingOpenInputFrame, font=self.fonts["medium"], width=5, justify="center")
         self.flushTimeingLabel = tkinter.Label(self.timingFlushInputFrame, text="Flush Time:", font=self.fonts["medium"])
         self.flushTimeEntry = tkinter.Entry(self.timingFlushInputFrame, font=self.fonts["medium"], width=5, justify="center")
         self.openTimingLabel.pack(side="left", anchor="center", fill="x", pady=3)
         self.openTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
         self.flushTimeingLabel.pack(side="left", anchor="center", fill="x", pady=3)
         self.flushTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
-        #Button to change the timings between open and close
+        #Button to send the timings to the device
         self.updateTimingsButton = tkinter.Button(self.timingsFrame, text="Update Timings", command=self.updateTimingPressed, font=self.fonts["medium"])
         self.updateTimingsButton.pack(pady=3)
-
+        #Label to display the current internal clock time of the device
         self.currentClockTimeLabel = tkinter.Label(self.configureFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.fonts["medium"])
         self.currentClockTimeLabel.grid(row=8, column=2, pady=15)
-        #Add time set button
+        #Button to request that the time be sent from the computer to the device
         self.timeButton = tkinter.Button(self.configureFrame, text="Update Current Time", command=self.setTimePressed, font=self.fonts["medium"])
         self.timeButton.grid(row=8, column=3, pady=15)
-
+        #Button to close the configuration screen and return to the main window
         self.endConfigureButton = tkinter.Button(self.configureFrame, text="Close Configuration", font=self.fonts["large"], command=self.endConfigurePressed)
         self.endConfigureButton.grid(row=9, column=2, columnspan=2, rowspan=2, pady=15)
 
-        #New window to display point calculations and allow for calibration entry
+        """Calculations Window""" #New window to display point calculations and allow for calibration entry
         self.calculationsWindow = tkinter.Toplevel(self)
         self.calculationsWindow.title("Calibration Calculations")
         self.calculationsWindow.protocol("WM_DELETE_WINDOW", self.closeCalculations)
@@ -431,66 +428,54 @@ class MainWindow(tkinter.Frame):
         self.labelTwo.grid(row=1, column=3, sticky="NESW")
         self.labelOne = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="x +")
         self.labelOne.grid(row=1, column=5, sticky="NESW")
-
         #List of labels used to display calibration points once they have been captured
         self.tempLabels = []
-
         #Button to send the polynomal calibration to the gas sensor
         self.sendCalculationButton = tkinter.Button(self.calculationsWindow, text="Update Calibration", command=self.sendCalculationPressed)
         self.sendCalculationButton.grid(row=2, column=1, columnspan=5, sticky="NESW")
-
         #Widthdraw the window
         self.closeCalculations()
 
         """Files Frame"""
         self.filesFrame = tkinter.Frame(self)
-
         #Setup parts for the scrolling canvas
         self.fileCanvas = None
         self.fileScroll = None
         self.fileGridFrame = None
         self.fileButtons = []
         self.fileCanvasWindow = None
-
         for row in range(0, 8):
             self.filesFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 10):
             self.filesFrame.grid_columnconfigure(col, weight=1)
-
-        self.sdCardString = "SD Card: {0}/{1}MB {2}% Full"
+        #Default string and label to display sd card capacity
+        self.sdCardString = "SD Card: {0}/{1}MB {2}% Used"
         self.sdCardInfoLabel = tkinter.Label(self.filesFrame, text="SD Card: 0/0MB 0% Used", font=self.fonts["medium"])
         self.sdCardInfoLabel.grid(row=0, column=0, columnspan=10, sticky="NESW")
-
         #Add a frame to put the list of files into
         self.fileListFrame = tkinter.Frame(self.filesFrame, bg="#FFFFFF")
         self.fileListFrame.grid(row=1, column=0, columnspan=10, rowspan=7, sticky="NESW")
-
         #Add button to open separator settings
         self.separatorButton = tkinter.Button(self.filesFrame, image=self.gearIcon, command=self.openSeparators)
         self.separatorButton.grid(row=8, column=0)
-
         #Add label for selected file name
         self.fileLabel = tkinter.Label(self.filesFrame, text="No file selected", font=self.fonts["medium"])
         self.fileLabel.grid(row=8, column=1, columnspan=3, sticky="NESW")
-
         #Add download file button
         self.downloadFileButton = tkinter.Button(self.filesFrame, text="Download", state="disabled", command=self.downloadPressed, font=self.fonts["medium"])
         self.downloadFileButton.grid(row=8, column=4, columnspan=2, sticky="NESW")
-
         #Add delete file button
         self.deleteFileButton = tkinter.Button(self.filesFrame, text="Delete", state="disabled", command=self.deletePressed, font=self.fonts["medium"])
         self.deleteFileButton.grid(row=8, column=6, columnspan=2, sticky="NESW")
-
+        #Add button to return to the main view
         self.closeFileButton = tkinter.Button(self.filesFrame, text="Close Files", command=self.closeFileView, font=self.fonts["medium"])
         self.closeFileButton.grid(row=8, column=8, columnspan=2, sticky="NESW")
-        
         #Get the style object for the parent window
         self.styles = Style(self.parent)
         #Create layout for progress bar with a label
         self.styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
         #Set the bar colour of the progress bar
         self.styles.configure("ProgressbarLabeled", background="lightgreen")
-
         #Create a progress bar
         self.progressBar = Ttk.Progressbar(self.filesFrame, orient="horizontal", mode="determinate", maximum=100.0, style="ProgressbarLabeled")
         #Set the text
@@ -498,15 +483,11 @@ class MainWindow(tkinter.Frame):
         self.progressBar.grid(row=9, column=0, columnspan=10, sticky="NESW")
         self.progressBar.grid_remove()
 
-        #The valve window is not currently visible
-        self.valveWindowOpen = False
-
+        """Separator Window""" #Window to allow user to choose separators
         #Using comma separation
         self.comma = True
         #Load the separators from the memory file
         self.loadSeparators()
-
-        #Window to allow user to choose separators
         self.separatorWindow = tkinter.Toplevel(self)
         self.separatorWindow.title("File Config")
         self.separatorWindow.protocol("WM_DELETE_WINDOW", self.closeSeparators)
@@ -515,7 +496,6 @@ class MainWindow(tkinter.Frame):
         self.separatorWindow.grid_rowconfigure(0, weight=1)
         self.separatorWindow.grid_columnconfigure(0, weight=1)
         self.separatorWindow.grid_columnconfigure(1, weight=1)
-
         #Frame to hold comma option
         self.commaFrame = tkinter.Frame(self.separatorWindow)
         self.commaFrame.grid(row=0, column=0, sticky="NESW")
@@ -523,7 +503,6 @@ class MainWindow(tkinter.Frame):
         self.commaFrame.grid_rowconfigure(0, weight=1)
         self.commaFrame.grid_rowconfigure(1, weight=1)
         self.commaFrame.grid_rowconfigure(2, weight=1)
-
         #Frame to hold semicolon option
         self.semiFrame = tkinter.Frame(self.separatorWindow)
         self.semiFrame.grid(row=0, column=1, sticky="NESW")
@@ -531,7 +510,6 @@ class MainWindow(tkinter.Frame):
         self.semiFrame.grid_rowconfigure(0, weight=1)
         self.semiFrame.grid_rowconfigure(1, weight=1)
         self.semiFrame.grid_rowconfigure(2, weight=1)
-
         #Font to use for the header text
         self.headerFont = font.Font(size=14)
         #Title of the comma section
@@ -562,19 +540,17 @@ class MainWindow(tkinter.Frame):
         self.connectFrame.grid(row=0, column=0, sticky="NESW")
 
         #Perform a first time scan
-        self.performScan(target = initialTarget)
-
+        self.performScan()
         #If the file display is currently open
         self.filesOpen = False
-
         #Perfom setup and set down of files to correctly size all elements
         self.setupFiles(self.files, True)
         self.setdownFiles()
-
+        #Create, but do not start, thread to check valve information. If started now it will not be connected and terminate immediately
         self.valveUpdateThread = Thread(target=self.updateValveInfoButton, daemon=True)
-
+        #Which screen is currently being viewed
         self.currentMain = 0
-        self.setupFiles(["File 1", "File 2", "File 3", "File 4", "File 5"])
+        #Move to the connect screen
         self.changeMainFrame(0)
 
     def pathTo(self, path : str) -> str:
@@ -585,6 +561,7 @@ class MainWindow(tkinter.Frame):
             return os.path.join(os.path.abspath("."), path)
 
     def changeMainFrame(self, window : int) -> None:
+        """Change the currently displayed screen if a valid index is given"""
         if window == 0:
             self.connectFrame.tkraise()
         if window == 1:
@@ -593,10 +570,13 @@ class MainWindow(tkinter.Frame):
             self.configureFrame.tkraise()
         if window == 3:
             self.filesFrame.tkraise()
+        #Removes focus from any widget
+        self.focus()
+        #Store the window index so it can be checked later to identify the current screen
         self.currentMain = window
 
     def displayMessage(self, title : str, message : str) -> None:
-        '''Send user a popup notification with the current title and message'''
+        '''Send user a popup notification with the current title and message, including the icon'''
         notification = notifypy.Notify()
         notification.title = title
         notification.message = message
@@ -604,20 +584,26 @@ class MainWindow(tkinter.Frame):
         notification.send()
 
     def moveGasBars(self, channel : int, ch4 : int, co2: int) -> None:
+        """Change the position of the bars and gas percentage labels for the given channel"""
+        #If it is a valid channel index
         if channel > -1 and channel < len(self.percentageViews):
-            height = ch4 / 100.0
-            ypos = 1.0 - height
-            self.percentageViews[channel]["ch4Bar"].place(rely=ypos, relheight=height, relwidth=1.0)
-            height = co2 / 100.0
-            ypos = 1.0 - height
-            self.percentageViews[channel]["co2Bar"].place(rely=ypos, relheight=height, relwidth=1.0)
+            #Calculate bar height and position (as percentage of parent) for ch4 and co2
+            ch4Height = ch4 / 100.0
+            ch4YPos = 1.0 - ch4Height
+            co2Height = co2 / 100.0
+            co2YPos = 1.0 - co2Height
+            #Move the bars and change the percentages
+            self.percentageViews[channel]["ch4Bar"].place(rely=ch4YPos, relheight=ch4Height, relwidth=1.0)
+            self.percentageViews[channel]["co2Bar"].place(rely=co2YPos, relheight=co2Height, relwidth=1.0)
             self.percentageViews[channel]["ch4Text"].configure(text="{0}%".format(ch4))
             self.percentageViews[channel]["co2Text"].configure(text="{0}%".format(co2))
 
-    def methanePointsPressed(self, channel):
+    def methanePointsPressed(self, channel : int) -> None:
+        """Open the graph for methane for the given channel"""
         self.openGraph(channel, True)
 
-    def carbonPointsPressed(self, channel):
+    def carbonPointsPressed(self, channel : int) -> None:
+        """Open the graph for carbon dioxide for the given channel"""
         self.openGraph(channel, False)
 
     def checkConnection(self) -> None:
@@ -626,7 +612,7 @@ class MainWindow(tkinter.Frame):
         if self.awaitingCommunication:
             #If timeout has been reached or exceeded
             if self.timesTried >= self.timeoutAttempts:
-                #Close the connection and reset the buttons
+                #Close the connection
                 self.serialConnection.close()
                 self.serialConnection = None
                 self.connected = False
@@ -634,8 +620,9 @@ class MainWindow(tkinter.Frame):
                 self.awaitingCommunication = False
                 if self.filesOpen:
                     self.setdownFiles()
-                #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
+                #Display message to user to indicate that connection was lost (Occurs when connecting to a port that is not a chimera)
                 self.displayMessage("Connection not established", "Please check this is the correct port and try again.")
+                #Return to connect screen
                 self.performScan()
                 self.changeMainFrame(0)
             else:
@@ -643,13 +630,6 @@ class MainWindow(tkinter.Frame):
                 self.timesTried = self.timesTried + 1
                 #Test again in .5 seconds
                 self.after(500, self.checkConnection)
-
-    def sendInfoRequest(self) -> None:
-        '''Send the initial request for communication (in function so that it can be delayed)'''
-        #If there is a connection
-        if self.connected and self.serialConnection != None:
-            #Send the information request
-            self.serialConnection.write("info\n".encode("utf-8"))
 
     def connectPressed(self) -> None:
         '''Attempt to connect to selected port'''
@@ -662,7 +642,6 @@ class MainWindow(tkinter.Frame):
                 success = True
                 try:
                     #Attempt to connect
-                    #self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
                     self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200)
                 except:
                     #If something went wrong
@@ -681,18 +660,18 @@ class MainWindow(tkinter.Frame):
                     #Start handling incoming messages
                     messageThread = Thread(target=self.checkMessages, daemon=True)
                     messageThread.start()
-                    #Send connection information request after a short time - allows for boot messages to clear
-                    self.after(200, self.sendInfoRequest)
+                    #Send connection information request
+                    self.serialConnection.write("info\n".encode("utf-8"))
                 else:
                     #Connection failed - reset
                     self.connected = False
                     #Not currently connected to a port
                     self.connectedPort = ""
-                    #Display message to user
                     self.displayMessage("Failed to connect", "Check the device is still connected and the port is available.")
+                    #Restart scanning for ports
                     self.performScan()
     
-    def performScan(self, target = None) -> None:
+    def performScan(self) -> None:
         '''Perform a scan of available ports and update option list accordingly'''
         if not self.connected:
             #List to contain available ports
@@ -705,7 +684,6 @@ class MainWindow(tkinter.Frame):
                 #Add the device name of the port to the list (can be used to connect to it)
                 found.append(data.device)
                 descs.append("(" + data.description + ")")
-            
             #If the old and new lists are different
             different = False
             #Test if the lists are different lengths
@@ -717,37 +695,26 @@ class MainWindow(tkinter.Frame):
                     #Check if they contain the same things (order unimportant)
                     if item not in self.portLabels:
                         different = True
-
             #If there was a change
             if different:
                 #Update labels
                 self.portLabels = found
-
                 #Delete the old menu options
                 menu = self.portOption["menu"]
                 menu.delete(0, tkinter.END)
-
                 i = 0
                 #Iterate through labels
                 for name in self.portLabels:
                     #Add the labels to the list
                     menu.add_command(label=name + " " + descs[i], command=lambda v=self.selectedPort, l=name: v.set(l))
                     i = i + 1
-
-                targetFound = False
-
-                if target != None:
-                    if target in self.portLabels:
-                        self.selectedPort.set(target)
-                
-                if not targetFound:
-                    #If the selected item is still available
-                    if self.selectedPort.get() in self.portLabels:
-                        #Set the drop down value to what it was
-                        self.selectedPort.set(self.selectedPort.get())
-                    else:
-                        #Set selected option to none
-                        self.selectedPort.set(self.portLabels[0])
+                #If the selected item is still available
+                if self.selectedPort.get() in self.portLabels:
+                    #Set the drop down value to what it was
+                    self.selectedPort.set(self.selectedPort.get())
+                else:
+                    #Set selected option to none
+                    self.selectedPort.set(self.portLabels[0])
             
             #Scan again shortly
             self.after(150, self.performScan)
@@ -762,9 +729,10 @@ class MainWindow(tkinter.Frame):
                 self.selectedPort.set(portName)
 
     def configurePressed(self) -> None:
-        '''Enter or exit calibration mode and send message to gas sensor accordingly'''
+        '''Enter configure mode and send messages to gas sensor accordingly'''
         if self.connected and not self.awaiting:
             if not self.calibrating:
+                #Requests for information so it is as up to date as possible
                 self.serialConnection.write("timeget\n".encode("utf-8"))
                 self.serialConnection.write("timingget\n".encode("utf-8"))
                 self.serialConnection.write("startcal\n".encode("utf-8"))
@@ -906,8 +874,7 @@ class MainWindow(tkinter.Frame):
                     self.setdownFiles()
                 #Display message to user to indicate that connection was lost (Occurs when device unplugged)
                 self.displayMessage("Connection Lost", "Please check connection and try again.")
-                self.performScan()
-                self.changeMainFrame(0)
+                self.closeWindow()
 
     def checkMessages(self) -> None:
         '''Repeatedly check for a new message and handle it'''
@@ -1735,29 +1702,36 @@ class MainWindow(tkinter.Frame):
                     self.calibrationUpdated = False
     
     def updateTimingPressed(self) -> None:
-        '''When the timings button is pressed'''
+        '''When the update timings button is pressed'''
         #If there is a connected device and not doing something else
         if self.connected and self.calibrating and not self.awaiting:
+            #Get the values from the entries
             enteredOpen = self.openTimeEntry.get()
             enteredFlush = self.flushTimeEntry.get()
             allowed = True
+            #Convert to integers
             try:
                 enteredOpen = int(enteredOpen)
                 enteredFlush = int(enteredFlush)
             except:
+                #If not possible - cannot set timings
                 self.displayMessage("Invalid Values", "Please only enter positive integers.")
                 allowed = False
             if allowed:
+                #Check that open is at most 9 hours and flush is at most 1 hour
                 if enteredOpen < 0 or enteredOpen > 9 * 3600:
                     allowed = False
                     self.displayMessage("Invalid Open Time", "Open time must be more than 0 and less than 9 hours ({0} seconds).".format(9 * 3600))
                 if enteredFlush < 0 or enteredFlush > 3600:
                     allowed = False
                     self.displayMessage("Invalid Flush Time", "Flush time must be more than 0 and less than 1 hour (3600 seconds).")
+                #Convert to milliseconds
                 enteredOpen = enteredOpen * 1000
                 enteredFlush = enteredFlush * 1000
+            #If there was nothing wrong with the data entered
             if allowed:
                 self.awaiting = True
+                #Send a message to set the timing information
                 self.serialConnection.write("timingset {0} {1}\n".format(enteredOpen, enteredFlush).encode("utf-8"))
                 #Send message to get the timing information
                 self.serialConnection.write("timingget\n".encode("utf-8"))
@@ -1768,6 +1742,7 @@ class MainWindow(tkinter.Frame):
         if channel > -1 and channel < 16:
             xData = []
             yData = []
+            #Take the data for the appropriate gas and add its information to the axes, should they exist
             if methane:
                 if len(self.ch4DebugData[channel]) > 0:
                     for i in range(0, len(self.ch4DebugData[channel])):
@@ -1778,9 +1753,10 @@ class MainWindow(tkinter.Frame):
                     for i in range(0, len(self.co2DebugData[channel])):
                         xData.append(i)
                         yData.append(self.co2DebugData[channel][i])
-                    self.debugPlot.set_title("Carbon Dioxide")
             
+            #If there was data
             if len(xData) > 0 and len(yData) > 0:
+                #Clear the plot, set titles and add the points
                 self.debugPlot.clear()
                 if methane:
                     self.debugPlot.set_title("Methane")
@@ -1797,13 +1773,18 @@ class MainWindow(tkinter.Frame):
         self.graphWindow.withdraw()
 
     def updateServiceDisplays(self) -> None:
+        """Update the in service status of the ui elements"""
+        #Iterate through for all the channels there are valid objects for
         for index in range(0, min(len(self.enabledButtons), len(self.currentService), len(self.percentageViews))):
+            #If currently being used
             if self.currentService[index]:
+                #Set the button to enabled and set the colours of the view window to normal
                 self.enabledButtons[index].configure(text="Enabled", bg=self.selectedButtonColour)
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.defaultButtonColour)
                 self.percentageViews[index]["frame"].configure(bg=self.defaultButtonColour)
             else:
+                #Set the button to disabled and set the colours of the view window to darkened
                 self.enabledButtons[index].configure(text="Disabled", bg=self.redTextColour)
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.darkenedColour)
@@ -1813,7 +1794,7 @@ class MainWindow(tkinter.Frame):
         '''When a service toggle button is pressed'''
         #Invert the service state
         self.currentService[channel] = not self.currentService[channel]
-        #Toggle the text and colour of the button accordingly
+        #Send the change to the connected device
         self.updateService()
 
     def updateService(self) -> None:
@@ -1838,34 +1819,44 @@ class MainWindow(tkinter.Frame):
         for i in range(0, len(self.valveStates)):
             if self.valveStates[i]:
                 current = i
-        
         self.currentValve = current
-        
+        #If the valve window is visible at the moment - update it
         if self.valveWindowOpen:
             self.updateValveWindow()
 
     def updateValveInfoButton(self) -> None:
+        """Update the button to display the time remaining on the current action"""
+        #Repeat forever while there is a connection
         while self.connected and self.serialConnection != None:
+            #Only while on the view screen
             if self.currentMain == 1:
+                #Calculate time since the last event
                 elapsed = time.time() - self.lastEvent
-
+                #Valve open - reading data
                 if self.currentValve > -1 and self.currentValve < 15:
                     remaining = max(int(self.currentOpen - elapsed), 0)
-                    self.currentTimeInfoButton.configure(text="Currently Reading Valve {0}, {1} remain".format(self.currentValve + 1, self.formatSeconds(remaining)))
+                    self.currentTimeInfoButton.configure(text="Currently Reading Valve {0}, {1} remaining".format(self.currentValve + 1, self.formatSeconds(remaining)))
+                #Flushing
                 elif self.currentValve == 15:
                     remaining = max(int(self.currentFlush - elapsed), 0)
-                    self.currentTimeInfoButton.configure(text="Currently Flushing Valve 16, {0} remain".format(self.formatSeconds(remaining)))
+                    self.currentTimeInfoButton.configure(text="Currently Flushing Via Valve 16, {0} remaining".format(self.formatSeconds(remaining)))
+                #All valves closed
                 else:
-                    self.currentTimeInfoButton.configure(text="Currently Waiting")
+                    self.currentTimeInfoButton.configure(text="Currently Closed")
+            #Delay before next check
             time.sleep(0.05)
     
     def formatSeconds(self, seconds : int) -> str:
+        """Convert from integer to string and split into seconds, minutes and hours as appropriate"""
+        #Seconds only
         if seconds < 60:
             return "{0}s".format(seconds)
+        #Seconds and minutes
         if seconds < 60 * 60:
             minutes = seconds // 60
             seconds = seconds - (minutes * 60)
             return "{1}m {2}s".format(minutes, seconds)
+        #Seconds minutes and hours
         else:
             hours = seconds // (60 * 60)
             seconds = seconds - (hours * 60 * 60)
@@ -2045,7 +2036,9 @@ class MainWindow(tkinter.Frame):
         settingsFile.close()
 
     def closeFileView(self) -> None:
+        """Switch back to the view window from the file view window"""
         if not self.awaiting and not self.downloading:
+            #Move frame and clear files
             self.changeMainFrame(1)
             self.setdownFiles()
 
