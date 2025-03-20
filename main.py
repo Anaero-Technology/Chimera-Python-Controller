@@ -184,49 +184,39 @@ class MainWindow(tkinter.Frame):
             display["frame"].grid_rowconfigure(1, weight=1)
             display["frame"].grid_rowconfigure(2, weight=10)
             display["frame"].grid_rowconfigure(3, weight=1)
-            display["frame"].grid_columnconfigure(0, weight=2)
-            display["frame"].grid_columnconfigure(1, weight=5)
-            display["frame"].grid_columnconfigure(2, weight=1)
-            display["frame"].grid_columnconfigure(3, weight=5)
-            display["frame"].grid_columnconfigure(4, weight=2)
-            display["leftPad"] = tkinter.Frame(display["frame"], width=3)
-            display["leftPad"].grid(row=0, column=0, rowspan=4)
-            display["rightPad"] = tkinter.Frame(display["frame"], width=3)
-            display["rightPad"].grid(row=0, column=4, rowspan=4)
-            
-            display["centerPad"] = tkinter.Frame(display["frame"], width=1)
-            display["centerPad"].grid(row=1, column=2, rowspan=3)
+            display["frame"].grid_columnconfigure(0, weight=1)
+            display["frame"].grid_columnconfigure(1, weight=1)
             #Title text label
             reactorName = "Reactor {0}".format(i + 1)
             if i == 15:
                 reactorName = "Flush"
             display["label"] = tkinter.Label(display["frame"], text=reactorName, font=("", 10, "bold"))
-            display["label"].grid(row=0, column=1, columnspan=3, sticky="NESW")
+            display["label"].grid(row=0, column=0, columnspan=2, sticky="NESW")
 
             #Methane and CO2 display labels for text and percentage
             display["ch4Text"] = tkinter.Label(display["frame"], text="75%")
-            display["ch4Text"].grid(row=1, column=1, sticky="NESW")
+            display["ch4Text"].grid(row=1, column=0, padx=1, sticky="NESW")
             display["ch4Text"].bind("<Button-1>", lambda event,x=i:self.methanePointsPressed(x))
             display["ch4Out"] = tkinter.Frame(display["frame"])
-            display["ch4Out"].grid(row=2, column=1, sticky="NESW")
+            display["ch4Out"].grid(row=2, column=0, padx=1, sticky="NESW")
             display["ch4Bar"] = tkinter.Frame(display["ch4Out"])
             display["ch4Bar"].place(rely=0.25, relheight=0.75, relwidth=1.0)
             display["ch4ViewButton"] = tkinter.Button(display["ch4Bar"], command=lambda x=i:self.methanePointsPressed(x), bg=self.methaneColour)
             display["ch4ViewButton"].pack(expand=True, fill="both")
             display["ch4"] = tkinter.Label(display["frame"], text="CH4")
-            display["ch4"].grid(row=3, column=1, sticky="NESW")
+            display["ch4"].grid(row=3, column=0, padx=1, sticky="NESW")
 
             display["co2Text"] = tkinter.Label(display["frame"], text="25%")
-            display["co2Text"].grid(row=1, column=3, sticky="NESW")
+            display["co2Text"].grid(row=1, column=1, padx=1, sticky="NESW")
             display["co2Text"].bind("<Button-1>", lambda event,x=i:self.carbonPointsPressed(x))
             display["co2Out"] = tkinter.Frame(display["frame"])
-            display["co2Out"].grid(row=2, column=3, sticky="NESW")
+            display["co2Out"].grid(row=2, column=1, padx=1, sticky="NESW")
             display["co2Bar"] = tkinter.Frame(display["co2Out"])
             display["co2Bar"].place(rely=0.75, relheight=0.25, relwidth=1.0)
             display["co2ViewButton"] = tkinter.Button(display["co2Bar"], command=lambda x=i:self.carbonPointsPressed(x), bg=self.carbonColour)
             display["co2ViewButton"].pack(expand=True, fill="both")
             display["co2"] = tkinter.Label(display["frame"], text="CO2")
-            display["co2"].grid(row=3, column=3, sticky="NESW")
+            display["co2"].grid(row=3, column=1, padx=1, sticky="NESW")
             #Button to display points in peak
             self.percentageViews.append(display)
         
@@ -968,9 +958,6 @@ class MainWindow(tkinter.Frame):
                     self.percentageViews[i]["co2Out"].configure(bg=col)
                     self.percentageViews[i]["ch4Text"].configure(bg=col)
                     self.percentageViews[i]["co2Text"].configure(bg=col)
-                    self.percentageViews[i]["leftPad"].configure(bg=col)
-                    self.percentageViews[i]["rightPad"].configure(bg=col)
-                    self.percentageViews[i]["centerPad"].configure(bg=col)
 
             if messageParts[1] == "true":
                 #Calibrating state
@@ -1304,9 +1291,6 @@ class MainWindow(tkinter.Frame):
                     self.percentageViews[i]["co2Out"].configure(bg=col)
                     self.percentageViews[i]["ch4Text"].configure(bg=col)
                     self.percentageViews[i]["co2Text"].configure(bg=col)
-                    self.percentageViews[i]["leftPad"].configure(bg=col)
-                    self.percentageViews[i]["rightPad"].configure(bg=col)
-                    self.percentageViews[i]["centerPad"].configure(bg=col)
                 
                 #If there are enough values for each of the 5 extra points per gas type
                 if len(messageParts) > 15:
@@ -1548,7 +1532,6 @@ class MainWindow(tkinter.Frame):
         if len(self.ch4Percentages) > 1:
             #Calculate the order - currently unneccesary as only linear is used
             order = min(1, len(self.ch4Percentages) - 1)
-            #self.ch4Regression = numpy.polyfit(self.ch4Values, self.ch4Percentages, order)
             #Convert to polynomial object
             pObject = numpy.polynomial.Polynomial.fit(self.ch4Values, self.ch4Percentages, order)
             #Store regression - coefficient values from fit
@@ -1569,7 +1552,6 @@ class MainWindow(tkinter.Frame):
         if len(self.co2Percentages) > 1:
             #Calculate the order - currently unneccesary as only linear is used
             order = min(1, len(self.co2Percentages) - 1)
-            #self.co2Regression = numpy.polyfit(self.co2Values, self.co2Percentages, order)
             #Convert to polynomial object
             pObject = numpy.polynomial.Polynomial.fit(self.co2Values, self.co2Percentages, order)
             #Store regression - coefficient values from fit
