@@ -4,7 +4,7 @@ from tkinter.ttk import Style
 from tkinter import messagebox, simpledialog, filedialog, font
 import serial
 from matplotlib.figure import Figure 
-from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 from serial.tools import list_ports
 from threading import Thread
 import datetime
@@ -63,6 +63,7 @@ class MainWindow(tkinter.Frame):
         #If waiting for a response from the esp32 (possibly add a timeout)
         self.awaiting = False
         self.downloading = False
+        self.awaitingFiles = False
 
         self.percentageValue = 0
         #Percentage values entered from known gas concentrations
@@ -775,7 +776,10 @@ class MainWindow(tkinter.Frame):
             self.awaiting = True
     
     def viewFilesPressed(self) -> None:
-        self.changeMainFrame(3)
+        if self.connected and not self.awaiting:
+            self.askForFiles()
+            self.awaitingFiles = True
+            self.awaiting = True
     
     def setTimePressed(self) -> None:
         '''If in calibration mode - send the time from the computer to the gas sensor to set the real time clock'''
@@ -980,7 +984,7 @@ class MainWindow(tkinter.Frame):
             self.awaiting = False
             #Cycle the files so they are up to date
             self.setdownFiles()
-            self.askForFiles()
+            #self.askForFiles()
         
         #If an action has been successfully performed
         if len(messageParts) > 1 and messageParts[0] == "done":
@@ -990,6 +994,9 @@ class MainWindow(tkinter.Frame):
             if messageParts[1] == "files":
                 #Display the files that were received
                 self.setupFiles(self.files)
+                if self.awaitingFiles and self.currentMain == 1:
+                    self.changeMainFrame(3)
+                self.awaitingFiles = False
 
             #Finished deleting file
             if messageParts[1] == "delete":
@@ -1009,7 +1016,7 @@ class MainWindow(tkinter.Frame):
                 self.calibrating = False
                 #Return to main view
                 self.switchToView()
-                self.askForFiles()
+                #self.askForFiles()
             
             #Time was set successfully
             if messageParts[1] == "timeset":
@@ -1075,7 +1082,7 @@ class MainWindow(tkinter.Frame):
                 if messageParts[2] == "notcalibrating":
                     self.calibrating = False
                     self.switchToView()
-                    self.askForFiles()
+                    #self.askForFiles()
             
             if messageParts[1] == "timingset":
                 if messageParts[2] == "noopen":
@@ -2048,7 +2055,7 @@ class MainWindow(tkinter.Frame):
             self.setdownFiles()
         self.filesOpen = True
         #Create canvas and scroll bar
-        self.fileCanvas = tkinter.Canvas(self.fileListFrame, bg="#FFFFFF")
+        self.fileCanvas = tkinter.Canvas(self.fileListFrame, bg=self.defaultButtonColour)
         self.fileScroll = tkinter.Scrollbar(self.fileListFrame, orient="vertical", command=self.fileCanvas.yview)
 
         #Add canvas and scroll bar to the frame
