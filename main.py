@@ -324,21 +324,21 @@ class MainWindow(tkinter.Frame):
         self.ch4ConfigLabel.grid(row=0, column=0, columnspan=2, sticky="NESW")
         #Canvases to hold graphs for calibrations
         self.ch4CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCh4, master=self.configureFrame)
-        self.ch4CalCanvas.get_tk_widget().grid(row=1, column=0, columnspan=2, rowspan=2)
+        self.ch4CalCanvas.get_tk_widget().grid(row=1, column=0, columnspan=2)
         #Buttons to allow for points to be added to calibration curves
-        self.addPointCh4Button = tkinter.Button(self.configureFrame, text="Add Point", command=self.addPointCh4Pressed)
+        self.addPointCh4Button = tkinter.Button(self.configureFrame, text="+ Add Point", command=self.addPointCh4Pressed, font=self.fonts["medium"])
         self.addPointCh4Button.grid(row=3, column=0, columnspan=2)
         #Buttons to allow for calibration values to be sent to the device
-        self.calculateCh4Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=False: self.openCalculation(x))
-        self.calculateCh4Button.grid(row=4, column=0, sticky="NESW")
+        self.calculateCh4Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=False: self.openCalculation(x), font=self.fonts["medium"])
+        self.calculateCh4Button.grid(row=4, column=0, columnspan=2)
         #Label to mark carbon dioxide section
         self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.fonts["large"])
-        self.co2ConfigLabel.grid(row=4, column=0, columnspan=2, sticky="NESW")
+        self.co2ConfigLabel.grid(row=5, column=0, columnspan=2, sticky="NESW")
         self.co2CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCo2, master=self.configureFrame)
-        self.co2CalCanvas.get_tk_widget().grid(row=5, column=0, columnspan=2, rowspan=2)
-        self.addPointCo2Button = tkinter.Button(self.configureFrame, text="Add Point", command=self.addPointCo2Pressed)
+        self.co2CalCanvas.get_tk_widget().grid(row=6, column=0, columnspan=2)
+        self.addPointCo2Button = tkinter.Button(self.configureFrame, text="+ Add Point", command=self.addPointCo2Pressed, font=self.fonts["medium"])
         self.addPointCo2Button.grid(row=7, column=0, columnspan=2)
-        self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=True: self.openCalculation(x))
+        self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure", command=lambda x=True: self.openCalculation(x), font=self.fonts["medium"])
         self.calculateCo2Button.grid(row=8, column=0, columnspan=2)
         #Label to act as header for channel service configuration section
         self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
