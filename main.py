@@ -31,6 +31,7 @@ class MainWindow(tkinter.Frame):
         self.redTextColour = "#FF3333"
 
         #Fonts
+        self.hugeFont = ("", 22)
         self.largeFont = ("", 18)
         self.mediumFont = ("", 14)
 
@@ -61,20 +62,27 @@ class MainWindow(tkinter.Frame):
         self.connectButtonsFrame = tkinter.Frame(self.connectFrame)
         self.connectButtonsFrame.pack(expand=True)
 
+        self.connectInfoLabel = tkinter.Label(self.connectButtonsFrame, text="Select port to connect to Chimera", font=self.hugeFont)
+        self.connectInfoLabel.pack(side="top", anchor="center", pady=20)
+
+        self.connectInternalFrame = tkinter.Frame(self.connectButtonsFrame)
+        self.connectInternalFrame.pack(side="top", anchor="center")
+
         #Setup port drop down (with debug values)
         self.selectedPort = tkinter.StringVar()
         self.selectedPort.set("Port 1")
-        self.portOption = tkinter.OptionMenu(self.connectButtonsFrame, self.selectedPort, "Port 1", "Port 2", "Port 3", "Port 4")
+        self.portOption = tkinter.OptionMenu(self.connectInternalFrame, self.selectedPort, "Port 1", "Port 2", "Port 3", "Port 4")
         self.parent.nametowidget(self.portOption.menuname).configure(font=self.largeFont)
         self.portOption.configure(font=self.largeFont)
-        self.portOption.pack(side="left", anchor="center", fill="x")
-
-        self.connectPaddingFrame = tkinter.Frame(self.connectButtonsFrame, width=20)
-        self.connectPaddingFrame.pack(side="left", anchor="center", fill="x")
+        self.portOption.pack(side="left", anchor="center", fill="x", padx=10)
 
         #Add connect button
-        self.connectButton = tkinter.Button(self.connectButtonsFrame, text="Connect", command=self.connectPressed, font=self.largeFont)
-        self.connectButton.pack(side="left", anchor="center", fill="x")
+        self.connectButton = tkinter.Button(self.connectInternalFrame, text="Connect", command=self.connectPressed, font=self.largeFont)
+        self.connectButton.pack(side="left", anchor="center", fill="x", padx=10)
+
+        #Button colours
+        self.defaultButtonColour = self.connectButton.cget("bg")
+        self.selectedButtonColour = "#70D070"
 
         """View Frame"""
         self.viewFrame = tkinter.Frame(self)
@@ -216,6 +224,12 @@ class MainWindow(tkinter.Frame):
         """Configure Frame"""
         self.configureFrame = tkinter.Frame(self)
 
+        self.graphBackground = list(self.winfo_rgb(self.defaultButtonColour))
+        for i in range(0, len(self.graphBackground)):
+            self.graphBackground[i] = self.graphBackground[i] / 65535
+        
+        self.darkenedColour = "#777777"
+
         #Graph to show methane calibration points
         self.calibrationFigureCh4 = Figure(figsize=(5, 5), dpi=100)
         self.calibrationFigureCh4.set_size_inches(3.5, 2)
@@ -223,6 +237,8 @@ class MainWindow(tkinter.Frame):
         self.ch4CalPlot.set_title("Methane Calibration")
         self.ch4CalPlot.set_xlim(0, 100)
         self.ch4CalPlot.set_ylim(1000, 2000)
+        self.ch4CalPlot.set_facecolor(self.graphBackground)
+        self.calibrationFigureCh4.set_facecolor(self.graphBackground)
 
         #Graph to show carbon dioxide calibration points
         self.calibrationFigureCo2 = Figure(figsize=(5, 5), dpi=100)
@@ -231,6 +247,8 @@ class MainWindow(tkinter.Frame):
         self.co2CalPlot.set_title("Carbon Dioxide Calibration")
         self.co2CalPlot.set_xlim(0, 100)
         self.co2CalPlot.set_ylim(1000, 2000)
+        self.co2CalPlot.set_facecolor(self.graphBackground)
+        self.calibrationFigureCo2.set_facecolor(self.graphBackground)
 
         for row in range(0, 9):
             self.configureFrame.grid_rowconfigure(row, weight=1)
@@ -280,6 +298,8 @@ class MainWindow(tkinter.Frame):
             if currentColumn > 4:
                 currentColumn = 0
                 currentRow = currentRow + 2
+            self.enabledButtons.append(button)
+        
         self.timingsFrame = tkinter.Frame(self.configureFrame)
         self.timingsFrame.grid(row=4, column=2, columnspan=2, rowspan=4,)
         self.timingsLabel = tkinter.Label(self.timingsFrame, text="Timings", font=self.largeFont)
@@ -301,13 +321,13 @@ class MainWindow(tkinter.Frame):
         self.updateTimingsButton.pack(pady=3)
 
         self.currentClockTimeLabel = tkinter.Label(self.configureFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.mediumFont)
-        self.currentClockTimeLabel.grid(row=9, column=2, pady=10)
+        self.currentClockTimeLabel.grid(row=8, column=2, pady=15)
         #Add time set button
         self.timeButton = tkinter.Button(self.configureFrame, text="Update Current Time", command=self.setTimePressed, font=self.mediumFont)
-        self.timeButton.grid(row=9, column=3, pady=10)
+        self.timeButton.grid(row=8, column=3, pady=15)
 
-        self.endConfigureButton = tkinter.Button(self.configureFrame, text="Done", font=self.largeFont, command=self.endConfigurePressed)
-        self.endConfigureButton.grid(row=8, column=0, columnspan=2, rowspan=2)
+        self.endConfigureButton = tkinter.Button(self.configureFrame, text="Close Configuration", font=self.largeFont, command=self.endConfigurePressed)
+        self.endConfigureButton.grid(row=9, column=2, columnspan=2, rowspan=2, pady=15)
 
         #New window to display point calculations and allow for calibration entry
         self.calculationsWindow = tkinter.Toplevel(self)
@@ -475,10 +495,6 @@ class MainWindow(tkinter.Frame):
 
         #List of available port names
         self.portLabels = []
-
-        #Button colours
-        self.defaultButtonColour = self.connectButton.cget("bg")
-        self.selectedButtonColour = "#70D070"
 
         #List of available files (for testing)
         self.files = ["File Number 1", "File Number 2"]
@@ -917,6 +933,8 @@ class MainWindow(tkinter.Frame):
                 #Send request for past data
                 self.serialConnection.write("getpast\n".encode("utf-8"))
                 self.serialConnection.write("timingget\n".encode("utf-8"))
+                self.serialConnection.write("serviceget\n".encode("utf-8"))
+                self.parent.title("Chimera Client - {0}".format(self.connectedPort))
                 #Display connected message
                 self.displayMessage("Connected successfully", "Now viewing device information")
                 self.valveUpdateThread.start()
@@ -925,6 +943,8 @@ class MainWindow(tkinter.Frame):
                 for i in range(0, 15):
                     #Set colour to default colour
                     col = self.defaultButtonColour
+                    if not self.currentService[i]:
+                        col = self.darkenedColour
                     #Update the background of each part
                     self.percentageViews[i]["frame"].configure(bg=col)
                     self.percentageViews[i]["label"].configure(bg=col)
@@ -1009,9 +1029,9 @@ class MainWindow(tkinter.Frame):
             
             #In service was set successfully
             if messageParts[1] == "serviceset":
-                self.displayMessage("Channel Service Set", "Successfully updated which channels are in service.")
-                self.closeService()
-                self.awaiting = False
+                #self.displayMessage("Channel Service Set", "Successfully updated which channels are in service.")
+                #self.closeService()
+                self.serialConnection.write("serviceget\n".encode("utf-8"))
         
         #If an action failed with an error message
         if len(messageParts) > 2 and messageParts[0] == "failed":
@@ -1251,11 +1271,15 @@ class MainWindow(tkinter.Frame):
                 #Add to view percentages
                 self.moveGasBars(channel, ch4, co2)
                 #Iterate through channels
-                for i in range(0, 15):
+                for i in range(0, 16):
                     #Set colour to selected only if this is the current channel
                     col = self.defaultButtonColour
                     if i == channel:
                         col = self.selectedButtonColour
+                    else:
+                        if i != 15:
+                            if not self.currentService[i]:
+                                col = self.darkenedColour
                     #Update the background of each part
                     self.percentageViews[i]["frame"].configure(bg=col)
                     self.percentageViews[i]["label"].configure(bg=col)
@@ -1297,8 +1321,6 @@ class MainWindow(tkinter.Frame):
                 self.currentFlush = flushValue
                 self.awaiting = False
                 self.updateTimingsDisplay()
-                #Ask the user to enter new times (this will only be given if the user asked to do so)
-                #self.askTiming()
             except:
                 self.displayMessage("Could Not Retrieve Timings", "Could not get timings from device, please try again.")
 
@@ -1311,7 +1333,8 @@ class MainWindow(tkinter.Frame):
                 #If the character is not a 0 then the channel is in service
                 self.currentService[i] = messageParts[i + 1] != "0"
             #Open the window to display this information
-            self.openServiceWindow()
+            #self.openServiceWindow()
+            self.updateServiceDisplays()
             self.awaiting = False
         
         #If this is a message conveying the current calibration data
@@ -1713,9 +1736,29 @@ class MainWindow(tkinter.Frame):
         '''When the timings button is pressed'''
         #If there is a connected device and not doing something else
         if self.connected and self.calibrating and not self.awaiting:
-            self.awaiting = True
-            #Send message to get the timing information
-            self.serialConnection.write("timingget\n".encode("utf-8"))
+            enteredOpen = self.openTimeEntry.get()
+            enteredFlush = self.flushTimeEntry.get()
+            allowed = True
+            try:
+                enteredOpen = int(enteredOpen)
+                enteredFlush = int(enteredFlush)
+            except:
+                self.displayMessage("Invalid Values", "Please only enter positive integers.")
+                allowed = False
+            if allowed:
+                if enteredOpen < 0 or enteredOpen > 9 * 3600:
+                    allowed = False
+                    self.displayMessage("Invalid Open Time", "Open time must be more than 0 and less than 9 hours ({0} seconds).".format(9 * 3600))
+                if enteredFlush < 0 or enteredFlush > 3600:
+                    allowed = False
+                    self.displayMessage("Invalid Flush Time", "Flush time must be more than 0 and less than 1 hour (3600 seconds).")
+                enteredOpen = enteredOpen * 1000
+                enteredFlush = enteredFlush * 1000
+            if allowed:
+                self.awaiting = True
+                self.serialConnection.write("timingset {0} {1}\n".format(enteredOpen, enteredFlush).encode("utf-8"))
+                #Send message to get the timing information
+                self.serialConnection.write("timingget\n".encode("utf-8"))
 
     def openGraph(self, channel : int, methane : bool) -> None:
         '''Open the graph for the peak values for a given channel'''
@@ -1751,33 +1794,18 @@ class MainWindow(tkinter.Frame):
         '''Close the debug graphs window'''
         self.graphWindow.withdraw()
 
-    def askTiming(self) -> None:
-        '''Ask the user to enter new timing values'''
-        #If connected to a device and not doing something else
-        if self.connected and self.calibrating and not self.awaiting:
-            #Ask for the time to keep the valve open for
-            openInput = simpledialog.askinteger(title="Enter Valve Open Time", prompt="Enter number of seconds for valve to be open for reading. Current value is {0}.".format(self.currentOpen), initialvalue=self.currentOpen, minvalue=1, maxvalue=12*3600)
-            #If an integer was given (not a cancel)
-            if type(openInput) == int:
-                #If less than 12 hours
-                if openInput > 0 and openInput < (12 * 3600) + 1:
-                    #Ask the user for the time to flush for
-                    flushInput = simpledialog.askinteger(title="Enter Flush Time", prompt="Enter number of seconds to flush for. Current value is {0}.".format(self.currentFlush), initialvalue=self.currentFlush, minvalue=1, maxvalue=3600)
-                    #If an integer was given (not a cancel)
-                    if type(flushInput) == int:
-                        #If less than an hour
-                        if flushInput > 0 and flushInput < 3601:
-                            #If at least one value was changed
-                            if openInput != self.currentOpen or flushInput != self.currentFlush:
-                                #Update the timing values
-                                self.serialConnection.write("timingset {0} {1}\n".format(openInput * 1000, flushInput * 1000).encode("utf-8"))
-                                self.awaiting = True
-                            else:
-                                self.displayMessage("Values Not Changed", "Values are the same as are currently set.")
-                        else:
-                            self.displayMessage("Invalid Timing Value", "Flush time must be greater than 0 and less than 1 hour (3600 seconds).")
-                else:
-                    self.displayMessage("Invalid Timing Value", "Open time must be greater than 0 and at most 12 hours ({0} seconds).".format(12 * 3600))
+    def updateServiceDisplays(self) -> None:
+        for index in range(0, min(len(self.enabledButtons), len(self.currentService), len(self.percentageViews))):
+            if self.currentService[index]:
+                self.enabledButtons[index].configure(text="Enabled", fg=self.greenTextColour)
+                for child in self.percentageViews[index]["frame"].winfo_children():
+                    child.configure(bg=self.defaultButtonColour)
+                self.percentageViews[index]["frame"].configure(bg=self.defaultButtonColour)
+            else:
+                self.enabledButtons[index].configure(text="Disabled", fg=self.redTextColour)
+                for child in self.percentageViews[index]["frame"].winfo_children():
+                    child.configure(bg=self.darkenedColour)
+                self.percentageViews[index]["frame"].configure(bg=self.darkenedColour)
 
     def openServicePressed(self) -> None:
         '''When asked to open the in service window'''
@@ -1808,12 +1836,9 @@ class MainWindow(tkinter.Frame):
         #Invert the service state
         self.currentService[channel] = not self.currentService[channel]
         #Toggle the text and colour of the button accordingly
-        if self.currentService[channel]:
-            self.serviceChannelItems[channel]["button"].configure(text="Enabled", fg=self.greenTextColour)
-        else:
-            self.serviceChannelItems[channel]["button"].configure(text="Disabled", fg=self.redTextColour)
+        self.updateService()
 
-    def updateServicePressed(self) -> None:
+    def updateService(self) -> None:
         '''When the button is pressed to send the new channel service configuration to the device'''
         #If there is a connected device and not doing something else
         if self.connected and self.calibrating and not self.awaiting:
@@ -2224,7 +2249,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Gas Sensor Configure")
+    root.title("Chimera Client")
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
