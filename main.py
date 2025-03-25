@@ -753,7 +753,7 @@ class MainWindow(tkinter.Frame):
                     messageThread = Thread(target=self.checkMessages, daemon=True)
                     messageThread.start()
                     #Send connection information request
-                    self.serialConnection.write("info\n".encode("utf-8"))
+                    self.sendMessage("info\n")
                 else:
                     #Connection failed - reset
                     self.connected = False
@@ -825,20 +825,20 @@ class MainWindow(tkinter.Frame):
         if self.connected and not self.awaiting:
             if not self.calibrating:
                 #Requests for information so it is as up to date as possible
-                self.serialConnection.write("timeget\n".encode("utf-8"))
-                self.serialConnection.write("timingget\n".encode("utf-8"))
-                self.serialConnection.write("startcal\n".encode("utf-8"))
+                self.sendMessage("timeget\n")
+                self.sendMessage("timingget\n")
+                self.sendMessage("startcal\n")
                 self.awaiting = True
                 self.calibrationUpdated = False
     
     def endConfigurePressed(self) -> None:
         if self.connected and not self.awaiting:
-            self.serialConnection.write("endcal\n".encode("utf-8"))
+            self.sendMessage("endcal\n")
             self.awaiting = True
     
     def viewFilesPressed(self) -> None:
         if self.connected and not self.awaiting:
-            self.serialConnection.write("timeget\n".encode("utf-8"))
+            self.sendMessage("timeget\n")
             self.askForFiles()
             self.awaitingFiles = True
             self.awaiting = True
@@ -848,7 +848,7 @@ class MainWindow(tkinter.Frame):
         if self.connected and not self.awaiting:
             if self.calibrating:
                 time = datetime.datetime.now()
-                self.serialConnection.write("timeset {0},{1},{2},{3},{4},{5}\n".format(time.year, time.month, time.day, time.hour, time.minute, time.second).encode("utf-8"))
+                self.sendMessage("timeset {0},{1},{2},{3},{4},{5}\n".format(time.year, time.month, time.day, time.hour, time.minute, time.second))
                 self.awaiting = True
 
 
@@ -861,7 +861,7 @@ class MainWindow(tkinter.Frame):
                 self.files = []
                 self.fileSizes = []
                 #Ask for the list of files
-                self.serialConnection.write("files\n".encode("utf-8"))
+                self.sendMessage("files\n")
                 self.awaiting = True
 
     def deletePressed(self) -> None:
@@ -877,7 +877,7 @@ class MainWindow(tkinter.Frame):
                     if confirm:
                         #Send signal to delete file
                         message = "delete " + "/files/" + self.files[self.selectedFile] + "\n"
-                        self.serialConnection.write(message.encode("utf-8"))
+                        self.sendMessage(message)
                         #Wait for confirmation of deletion
                         self.awaiting = True
                 else:
@@ -910,7 +910,7 @@ class MainWindow(tkinter.Frame):
                         self.fileNameToSave = path
                         #Send message to download
                         message = "download " + "/files/" + self.files[self.selectedFile] + "\n"
-                        self.serialConnection.write(message.encode("utf-8"))
+                        self.sendMessage(message)
                         self.awaiting = True
                         self.downloadFileButton.configure(state="disabled")
                 else:
@@ -925,6 +925,10 @@ class MainWindow(tkinter.Frame):
         self.flushTimeEntry.delete(0, "end")
         self.openTimeEntry.insert(0, str(self.currentOpen))
         self.flushTimeEntry.insert(0, str(self.currentFlush))
+    
+    def sendMessage(self, message : str) -> None:
+        if self.connected and self.serialConnection != None:
+            self.serialConnection.write(message.encode("utf-8"))
 
     def readSerial(self) -> None:
         '''While connected repeatedly read information from serial connection'''
@@ -996,9 +1000,10 @@ class MainWindow(tkinter.Frame):
                 #No longer waiting
                 self.awaitingCommunication = False
                 #Send request for past data
-                self.serialConnection.write("getpast\n".encode("utf-8"))
-                self.serialConnection.write("timingget\n".encode("utf-8"))
-                self.serialConnection.write("serviceget\n".encode("utf-8"))
+                self.sendMessage("getpast\n")
+                self.sendMessage("timingget\n")
+                self.sendMessage("serviceget\n")
+                self.sendMessage("getcal\n")
                 self.parent.title("Chimera Client - {0}".format(self.connectedPort))
                 #Display connected message
                 self.displayMessage("Connected successfully", "Now viewing device information")
@@ -1089,7 +1094,7 @@ class MainWindow(tkinter.Frame):
             #Time was set successfully
             if messageParts[1] == "timeset":
                 self.displayMessage("Time Set", "Clock time was updated successfully.")
-                self.serialConnection.write("timeget\n".encode("utf-8"))
+                self.sendMessage("timeget\n")
                 self.awaiting = False
             
             #Valve timing was successfully changed
@@ -1107,7 +1112,7 @@ class MainWindow(tkinter.Frame):
             if messageParts[1] == "serviceset":
                 #self.displayMessage("Channel Service Set", "Successfully updated which channels are in service.")
                 #self.closeService()
-                self.serialConnection.write("serviceget\n".encode("utf-8"))
+                self.sendMessage("serviceget\n")
         
         #If an action failed with an error message
         if len(messageParts) > 2 and messageParts[0] == "failed":
@@ -1268,7 +1273,7 @@ class MainWindow(tkinter.Frame):
                         self.fileDataToSave = self.fileDataToSave + "\n"
                 
                 self.currentLine = self.currentLine + 1
-                self.serialConnection.write("next\n".encode("utf-8"))
+                self.sendMessage("next\n")
                 self.after(3000, self.reattemptNextLine, self.currentLine, 0)
 
         #If this is information regarding the memory
@@ -1485,7 +1490,7 @@ class MainWindow(tkinter.Frame):
                 self.currentTimeFileName = "eventLog_{0}{1}.csv".format(year, month)
             except:
                 if self.connected and self.serialConnection != None:
-                    self.serialConnection.write("timeget\n".encode("utf-8"))
+                    self.sendMessage("timeget\n")
 
         
     def reattemptNextLine(self, lineNumber, count) -> None:
@@ -1493,7 +1498,7 @@ class MainWindow(tkinter.Frame):
         #If they line has not been received and a connection is still present
         if lineNumber == self.currentLine and self.downloading and self.serialConnection != None:
             #Ask for the next line again
-            self.serialConnection.write("next\n".encode("utf-8"))
+            self.sendMessage("next\n")
             #If it has not been retried more than 3 times try again
             if count < 2:
                 self.after(3000, self.reattemptNextLine, self.currentLine, count + 1)
@@ -1549,7 +1554,7 @@ class MainWindow(tkinter.Frame):
     def switchToConfiguring(self) -> None:
         '''Change to display the calibration window and alter the button text'''
         if self.connected and self.serialConnection != None:
-            self.serialConnection.write("timeget\n".encode("utf-8"))
+            self.sendMessage("timeget\n")
         self.changeMainFrame(2)
 
     def switchToView(self) -> None:
@@ -1648,9 +1653,9 @@ class MainWindow(tkinter.Frame):
                             self.co2AddPercent = enteredValue
                         if (methane and self.ch4AddType == "auto") or (not methane and self.co2AddType == "auto"):
                             if methane:
-                                self.serialConnection.write("point ch4 {0}\n".format(self.calibrationReadTime * 1000).encode("utf-8"))
+                                self.sendMessage("point ch4 {0}\n".format(self.calibrationReadTime * 1000))
                             else:
-                                self.serialConnection.write("point co2 {0}\n".format(self.calibrationReadTime * 1000).encode("utf-8"))
+                                self.sendMessage("point co2 {0}\n".format(self.calibrationReadTime * 1000))
                             self.awaiting = True
                             self.percentageValue = enteredValue
                             self.calibratingMethane = methane
@@ -1768,7 +1773,7 @@ class MainWindow(tkinter.Frame):
                                 self.displayMessage("Invalid Value", "Must be at least 1 second and no longer than an hour.")
                             else:
                                 #Ask the device for a calibration point for methane
-                                self.serialConnection.write("point ch4 {0}\n".format(time * 1000).encode("utf-8"))
+                                self.sendMessage("point ch4 {0}\n".format(time * 1000))
                                 self.awaiting = True
                                 self.percentageValue = percent
         elif response == "no":
@@ -1797,7 +1802,7 @@ class MainWindow(tkinter.Frame):
                                 self.displayMessage("Invalid Value", "Must be at least 1 second and no longer than an hour.")
                             else:
                                 #Ask the device for a calibration point for carbon dioxide
-                                self.serialConnection.write("point co2 {0}\n".format(time * 1000).encode("utf-8"))
+                                self.sendMessage("point co2 {0}\n".format(time * 1000))
                                 self.awaiting = True
                                 self.percentageValue = percent
         elif response == "no":
@@ -2030,7 +2035,7 @@ class MainWindow(tkinter.Frame):
                     
                     #Construct the message and send it
                     message = "set{0}cal {1}|{2} {3}|{4}\n".format(gasType, stringValues[0], stringValues[1], stringValues[2], stringValues[3])
-                    self.serialConnection.write(message.encode("utf-8"))
+                    self.sendMessage(message)
                     self.awaiting = True
                     self.calibrationUpdated = False
     
@@ -2065,9 +2070,9 @@ class MainWindow(tkinter.Frame):
             if allowed:
                 self.awaiting = True
                 #Send a message to set the timing information
-                self.serialConnection.write("timingset {0} {1}\n".format(enteredOpen, enteredFlush).encode("utf-8"))
+                self.sendMessage("timingset {0} {1}\n".format(enteredOpen, enteredFlush))
                 #Send message to get the timing information
-                self.serialConnection.write("timingget\n".encode("utf-8"))
+                self.sendMessage("timingget\n")
 
     def openGraph(self, channel : int, methane : bool) -> None:
         '''Open the graph for the peak values for a given channel'''
@@ -2143,7 +2148,7 @@ class MainWindow(tkinter.Frame):
                 else:
                     serviceData = serviceData + "0"
             #Send data to device
-            self.serialConnection.write("serviceset {0}\n".format(serviceData).encode("utf-8"))
+            self.sendMessage("serviceset {0}\n".format(serviceData))
 
     def updateValveLabel(self) -> None:
         '''Change the valve label to display which valve is currently open'''
