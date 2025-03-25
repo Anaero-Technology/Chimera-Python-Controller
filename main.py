@@ -2076,6 +2076,13 @@ class MainWindow(tkinter.Frame):
 
     def openGraph(self, channel : int, methane : bool) -> None:
         '''Open the graph for the peak values for a given channel'''
+        ch4Calibrated = False
+        co2Calibrated = False
+        for i in range(0, 4):
+            if self.storedCalibration[0][i] != 0:
+                ch4Calibrated = True
+            if self.storedCalibration[1][i] != 0:
+                co2Calibrated = True
         #If it is a valid channel
         if channel > -1 and channel < 16:
             xData = []
@@ -2085,12 +2092,24 @@ class MainWindow(tkinter.Frame):
                 if len(self.ch4DebugData[channel]) > 0:
                     for i in range(0, len(self.ch4DebugData[channel])):
                         xData.append(i)
-                        yData.append(self.ch4DebugData[channel][i])
+                        if not ch4Calibrated:
+                            yData.append(self.ch4DebugData[channel][i])
+                        else:
+                            value = 0
+                            for j in range(0, 4):
+                                value = value + (self.storedCalibration[0][j] * (self.ch4DebugData[channel][i] ** j))
+                            yData.append(value)
             else:
                 if len(self.co2DebugData[channel]) > 0:
                     for i in range(0, len(self.co2DebugData[channel])):
                         xData.append(i)
-                        yData.append(self.co2DebugData[channel][i])
+                        if not co2Calibrated:
+                            yData.append(self.co2DebugData[channel][i])
+                        else:
+                            value = 0
+                            for j in range(0, 4):
+                                value = value + (self.storedCalibration[1][j] * (self.co2DebugData[channel][i] ** j))
+                            yData.append(value)
             
             #If there was data
             if len(xData) > 0 and len(yData) > 0:
