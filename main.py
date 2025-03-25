@@ -403,12 +403,15 @@ class MainWindow(tkinter.Frame):
         #Label to mark carbon dioxide section
         self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.fonts["large"])
         self.co2ConfigLabel.grid(row=5, column=0, columnspan=2, sticky="NESW")
+        #Canvas to hold calibration graph
         self.co2CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCo2, master=self.configureFrame)
         self.co2CalCanvas.get_tk_widget().grid(row=6, column=0, columnspan=2)
+        #Frame to hold timing label
         self.setupValueCo2TimingFrame = tkinter.Frame(self.configureFrame)
         self.setupValueCo2TimingFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
         self.setupValueCo2TimingLabel = tkinter.Label(self.setupValueCo2TimingFrame, text="Valve 1 open, reading. 60s remaining.", font=self.fonts["medium"], anchor="center", justify="center")
         self.setupValueCo2TimingLabel.pack(anchor="center", fill="x", padx=5)
+        #Frame to hold label, entry and buttons for value entry
         self.setupValueEntryCo2PointFrame = tkinter.Frame(self.configureFrame)
         self.setupValueEntryCo2PointFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
         self.setupValueCo2InternalFrame = tkinter.Frame(self.setupValueEntryCo2PointFrame)
@@ -421,6 +424,7 @@ class MainWindow(tkinter.Frame):
         self.setupValueEntryCo2PointAcceptButton.pack(side="left", anchor="center", fill="x", padx=5)
         self.setupValueEntryCo2PointCancelButton = tkinter.Button(self.setupValueCo2InternalFrame, image=self.crossIcon, command=lambda:self.cancelPointPressed(False))
         self.setupValueEntryCo2PointCancelButton.pack(side="left", anchor="center", fill="x", padx=5)
+        #Frame to hold entry type options
         self.setupCo2PointFrame = tkinter.Frame(self.configureFrame)
         self.setupCo2PointFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
         self.setupCo2PointFrame.grid_rowconfigure(0, weight=1)
@@ -433,14 +437,14 @@ class MainWindow(tkinter.Frame):
         self.manualCo2PointButton.grid(row=0, column=1)
         self.cancelCo2PointButton = tkinter.Button(self.setupCo2PointFrame, image=self.crossIcon, font=self.fonts["medium"], command=lambda:self.cancelPointPressed(False))
         self.cancelCo2PointButton.grid(row=0, column=2)
+        #Frame to hold button to add calibration points
         self.addCo2PointButtonFrame = tkinter.Frame(self.configureFrame)
         self.addCo2PointButtonFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
-        #Buttons to allow for points to be added to calibration curves
         self.addPointCo2Button = tkinter.Button(self.addCo2PointButtonFrame, text="+ Add Point", command=lambda:self.addPointPressed(False), font=self.fonts["medium"])
         self.addPointCo2Button.pack()
-
+        #Bind return to accept on entry
         self.setupValueEntryCo2PointEntry.bind("<Return>", lambda entry:self.valueAddConfirmPressed(False))
-
+        #Frame to hold calculate button
         self.calculateCo2Frame = tkinter.Frame(self.configureFrame)
         self.calculateCo2Frame.grid(row=8, column=0, columnspan=2, sticky="NESW")
         self.calculateCo2Button = tkinter.Button(self.calculateCo2Frame, text="Configure Calibration", command=lambda:self.openCalculation(False), font=self.fonts["medium"])
@@ -846,11 +850,13 @@ class MainWindow(tkinter.Frame):
                 self.calibrationUpdated = False
     
     def endConfigurePressed(self) -> None:
+        '''Return to main view from configure screen'''
         if self.connected and not self.awaiting:
             self.sendMessage("endcal\n")
             self.awaiting = True
     
     def viewFilesPressed(self) -> None:
+        '''Open the file view screen'''
         if self.connected and not self.awaiting:
             self.sendMessage("timeget\n")
             self.askForFiles()
@@ -933,14 +939,16 @@ class MainWindow(tkinter.Frame):
             self.displayMessage("Not Connected", "You must be connected to a port to download files.")
     
     def updateTimingsDisplay(self) -> None:
+        '''Update what is bdeing displayed about the timings'''
         self.openTimeLabel.configure(text="Open Time: {0}s".format(self.currentOpen))
-        self.flushTimeLabel.configure(text="Open Time: {0}s".format(self.currentFlush))
+        self.flushTimeLabel.configure(text="Flush Time: {0}s".format(self.currentFlush))
         self.openTimeEntry.delete(0, "end")
         self.flushTimeEntry.delete(0, "end")
         self.openTimeEntry.insert(0, str(self.currentOpen))
         self.flushTimeEntry.insert(0, str(self.currentFlush))
     
     def sendMessage(self, message : str) -> None:
+        '''Send passed message to the connected chimera'''
         if self.connected and self.serialConnection != None:
             self.serialConnection.write(message.encode("utf-8"))
 
@@ -1170,7 +1178,6 @@ class MainWindow(tkinter.Frame):
                 if messageParts[2] == "notcalibrating":
                     self.calibrating = False
                     self.switchToView()
-                    #self.askForFiles()
             
             if messageParts[1] == "timingset":
                 if messageParts[2] == "noopen":
@@ -1582,50 +1589,57 @@ class MainWindow(tkinter.Frame):
         self.changeMainFrame(1)
     
     def addPointPressed(self, methane : bool) -> None:
+        '''Start adding a point to calibration'''
         if not self.awaiting:
+            #Move correct frame to top
             if methane:
                 self.setupCh4PointFrame.tkraise()
             else:
                 self.setupCo2PointFrame.tkraise()
     
     def cancelPointPressed(self, methane : bool) -> None:
+        '''Stop addin a point to calibration'''
         if not self.awaiting:
+            #Move correct frame to top
             if methane:
                 self.addCh4PointButtonFrame.tkraise()
             else:
                 self.addCo2PointButtonFrame.tkraise()
     
     def openAddPercentage(self, methane : bool) -> None:
+        '''Start displaying the percentage input'''
         if not self.awaiting:
             if methane:
                 self.ch4AddPercent = -1
                 self.ch4AddValue = -1
-                self.setupValueEntryCh4PointLabel.configure(text="Percentage:")
+                self.setupValueEntryCh4PointLabel.configure(text="CH4 Percentage:")
                 self.setupValueEntryCh4PointEntry.delete(0, tkinter.END)
                 self.setupValueEntryCh4PointEntry.insert("0", 0)
                 self.setupValueEntryCh4PointFrame.tkraise()
             else:
                 self.co2AddPercent = -1
                 self.co2AddValue = -1
-                self.setupValueEntryCo2PointLabel.configure(text="Percentage:")
+                self.setupValueEntryCo2PointLabel.configure(text="CO2 Percentage:")
                 self.setupValueEntryCo2PointEntry.delete(0, tkinter.END)
                 self.setupValueEntryCo2PointEntry.insert("0", 0)
                 self.setupValueEntryCo2PointFrame.tkraise()
     
     def openAddValue(self, methane : bool) -> None:
+        '''Start displaying the millivolt input'''
         if not self.awaiting:
             if methane:
-                self.setupValueEntryCh4PointLabel.configure(text="Millivolts:")
+                self.setupValueEntryCh4PointLabel.configure(text="Millivolt Value:")
                 self.setupValueEntryCh4PointEntry.delete(0, tkinter.END)
                 self.setupValueEntryCh4PointEntry.insert("0", 0)
                 self.setupValueEntryCh4PointFrame.tkraise()
             else:
-                self.setupValueEntryCo2PointLabel.configure(text="Millivolts:")
+                self.setupValueEntryCo2PointLabel.configure(text="Millivolt Value:")
                 self.setupValueEntryCo2PointEntry.delete(0, tkinter.END)
                 self.setupValueEntryCo2PointEntry.insert("0", 0)
                 self.setupValueEntryCo2PointFrame.tkraise()
     
     def manualPressed(self, methane : bool) -> None:
+        '''User requested manual value entry'''
         if not self.awaiting:
             if methane:
                 self.ch4AddType = "man"
@@ -1635,6 +1649,7 @@ class MainWindow(tkinter.Frame):
         self.openAddPercentage(methane)
 
     def automaticPressed(self, methane : bool) -> None:
+        '''User requested automatic value detection using sensors'''
         if not self.awaiting:
             if methane:
                 self.ch4AddType = "auto"
@@ -1644,7 +1659,9 @@ class MainWindow(tkinter.Frame):
         self.openAddPercentage(methane)
     
     def valueAddConfirmPressed(self, methane : bool) -> None:
+        '''User has confirmed a value'''
         if not self.awaiting:
+            #Work out maximum for percentage or millivolts
             if (methane and self.ch4AddPercent == -1) or ((not methane) and self.co2AddPercent == -1):
                 maximum = 100
             else:
@@ -1652,22 +1669,28 @@ class MainWindow(tkinter.Frame):
             enteredValue = -1
             failed = False
             try:
+                #Get value from entry
                 if methane:
                     valueFromEntry = self.setupValueEntryCh4PointEntry.get()
                 else:
                     valueFromEntry = self.setupValueEntryCo2PointEntry.get()
+                #Convert to integer
                 if len(valueFromEntry) > 0:
                     enteredValue = int(valueFromEntry)
                 else:
+                    failed = True
                     self.displayMessage("Invalid Value", "Must enter a number")
             except:
                 self.displayMessage("Invalid Value", "Must enter a number")
                 failed = True
+            #If there was a valid entry
             if not failed:
+                #Check if it is in valid range
                 if enteredValue > -1 and enteredValue <= maximum:
+                    #If this is the first item - percentage
                     if (methane and self.ch4AddPercent == -1) or ((not methane) and self.co2AddPercent == -1):
+                        #Set value
                         if methane:
-                            print("Setting percentage")
                             self.ch4AddPercent = enteredValue
                         else:
                             self.co2AddPercent = enteredValue
@@ -2608,7 +2631,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Chimera Client")
+    root.title("Chimera Client V2.3")
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
