@@ -157,6 +157,9 @@ class MainWindow(tkinter.Frame):
         self.calibrationFlushing = False
         self.calibratingPoint = False
 
+        self.previousCh4 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.previousCo2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
         """Connection Frame"""
         self.connectFrame = tkinter.Frame(self)
         #Frame to keep all elements in the center
@@ -340,49 +343,60 @@ class MainWindow(tkinter.Frame):
         #Label to mark methane section
         self.ch4ConfigLabel = tkinter.Label(self.configureFrame, text="Methane", font=self.fonts["large"])
         self.ch4ConfigLabel.grid(row=0, column=0, columnspan=2, sticky="NESW")
-        #Canvases to hold graphs for calibrations
+        #Canvas to hold graph for methane calibrations
         self.ch4CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCh4, master=self.configureFrame)
         self.ch4CalCanvas.get_tk_widget().grid(row=1, column=0, columnspan=2)
-        
+        #Frame to hold timing label
         self.setupValueCh4TimingFrame = tkinter.Frame(self.configureFrame)
         self.setupValueCh4TimingFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        #Label to display remaining time
         self.setupValueCh4TimingLabel = tkinter.Label(self.setupValueCh4TimingFrame, text="Valve 1 open, reading. 60s remaining.", font=self.fonts["medium"], anchor="center", justify="center")
         self.setupValueCh4TimingLabel.pack(anchor="center", fill="x", padx=5)
+        #Frame to hold value entry widgets
         self.setupValueEntryCh4PointFrame = tkinter.Frame(self.configureFrame)
         self.setupValueEntryCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        #Internal frame to keep elements centered
         self.setupValueCh4InternalFrame = tkinter.Frame(self.setupValueEntryCh4PointFrame)
         self.setupValueCh4InternalFrame.pack(side="top", anchor="center")
+        #Label to prompt user
         self.setupValueEntryCh4PointLabel = tkinter.Label(self.setupValueCh4InternalFrame, text="Percent:", font=self.fonts["medium"])
         self.setupValueEntryCh4PointLabel.pack(side="left", anchor="center", fill="x")
+        #Entry to allow value to be typed
         self.setupValueEntryCh4PointEntry = tkinter.Entry(self.setupValueCh4InternalFrame, width=5, font=self.fonts["medium"])
         self.setupValueEntryCh4PointEntry.pack(side="left", anchor="center", fill="x")
+        #Accept button
         self.setupValueEntryCh4PointAcceptButton = tkinter.Button(self.setupValueCh4InternalFrame, image=self.tickIcon, command=lambda:self.valueAddConfirmPressed(True))
         self.setupValueEntryCh4PointAcceptButton.pack(side="left", anchor="center", fill="x", padx=5)
+        #Cancel button
         self.setupValueEntryCh4PointCancelButton = tkinter.Button(self.setupValueCh4InternalFrame, image=self.crossIcon, command=lambda:self.cancelPointPressed(True))
         self.setupValueEntryCh4PointCancelButton.pack(side="left", anchor="center", fill="x", padx=5)
+        #Frame for modes
         self.setupCh4PointFrame = tkinter.Frame(self.configureFrame)
         self.setupCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
         self.setupCh4PointFrame.grid_rowconfigure(0, weight=1)
         self.setupCh4PointFrame.grid_columnconfigure(0, weight=1)
         self.setupCh4PointFrame.grid_columnconfigure(1, weight=1)
         self.setupCh4PointFrame.grid_columnconfigure(2, weight=1)
+        #Automatic detection using sensor button
         self.automaticCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Use Sensor Value", command=lambda:self.automaticPressed(True), font=self.fonts["medium"])
         self.automaticCh4PointButton.grid(row=0, column=0)
+        #Manual user entry of both values
         self.manualCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Manual Entry", command=lambda:self.manualPressed(True), font=self.fonts["medium"])
         self.manualCh4PointButton.grid(row=0, column=1)
+        #Cancel button
         self.cancelCh4PointButton = tkinter.Button(self.setupCh4PointFrame, image=self.crossIcon, font=self.fonts["medium"], command=lambda:self.cancelPointPressed(True))
         self.cancelCh4PointButton.grid(row=0, column=2)
+        #Default frame to show add button
         self.addCh4PointButtonFrame = tkinter.Frame(self.configureFrame)
         self.addCh4PointButtonFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
-        #Buttons to allow for points to be added to calibration curves
         self.addPointCh4Button = tkinter.Button(self.addCh4PointButtonFrame, text="+ Add Point", command=lambda:self.addPointPressed(True), font=self.fonts["medium"])
         self.addPointCh4Button.pack()
-
+        #Bind enter to accept
         self.setupValueEntryCh4PointEntry.bind("<Return>", lambda entry:self.valueAddConfirmPressed(True))
-
+        #Frame to hold calculation button
         self.calculateCh4Frame = tkinter.Frame(self.configureFrame)
         self.calculateCh4Frame.grid(row=4, column=0, columnspan=2, sticky="NESW")
-        #Buttons to allow for calibration values to be sent to the device
+        #Button to allow for calibration values to be sent to the device
         self.calculateCh4Button = tkinter.Button(self.calculateCh4Frame, text="Configure Calibration", command=lambda:self.openCalculation(True), font=self.fonts["medium"])
         self.calculateCh4Button.pack()
 
@@ -1347,6 +1361,9 @@ class MainWindow(tkinter.Frame):
                 ch4 = int(float(messageParts[4]))
                 co2 = int(float(messageParts[5]))
                 channel = int(messageParts[1])
+                #Store to be used later if needed
+                self.previousCh4[channel] = ch4
+                self.previousCo2[channel] = co2
                 #Add to view percentages
                 self.moveGasBars(channel, ch4, co2)
                 #Iterate through channels
@@ -1434,6 +1451,9 @@ class MainWindow(tkinter.Frame):
                     #Get values from device
                     ch4 = int(messageParts[(channel * 2) + 1])
                     co2 = int(messageParts[(channel * 2) + 2])
+                    #Store for later use
+                    self.previousCh4[channel] = ch4
+                    self.previousCo2[channel] = co2
                     #Add to view percentages
                     self.moveGasBars(channel, ch4, co2)
 
@@ -2140,12 +2160,14 @@ class MainWindow(tkinter.Frame):
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.defaultButtonColour)
                 self.percentageViews[index]["frame"].configure(bg=self.defaultButtonColour)
+                self.moveGasBars(index, self.previousCh4[index], self.previousCo2[index])
             else:
                 #Set the button to disabled and set the colours of the view window to darkened
                 self.enabledButtons[index].configure(text="Disabled", bg=self.redTextColour)
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.darkenedColour)
                 self.percentageViews[index]["frame"].configure(bg=self.darkenedColour)
+                self.moveGasBars(index, 0, 0)
 
     def toggleServicePressed(self, channel) -> None:
         '''When a service toggle button is pressed'''
