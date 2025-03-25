@@ -37,6 +37,7 @@ class MainWindow(tkinter.Frame):
         self.gearIcon = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
         self.fileIcon = tkinter.PhotoImage(file=self.pathTo("images/filePresent.png"))
         self.crossIcon = tkinter.PhotoImage(file=self.pathTo("images/cross.png"))
+        self.smallCrossIcon = tkinter.PhotoImage(file=self.pathTo("images/smallCross.png"))
         self.tickIcon = tkinter.PhotoImage(file=self.pathTo("images/tick.png"))
 
         #Setup colours to use for different ui elements
@@ -140,6 +141,21 @@ class MainWindow(tkinter.Frame):
         self.currentFileName = ""
         #Current file based on device time
         self.currentTimeFileName = ""
+
+        self.ch4AddType = "auto"
+        self.co2AddType = "auto"
+        self.ch4AddPercent = -1
+        self.co2AddPercent = -1
+        self.ch4AddValue = -1
+        self.co2AddValue = -1
+
+        self.calibratingMethane = True
+        self.calibrationActionTime = 0
+        self.calibrationReadTime = 30
+        self.calibrationFlushTime = 15
+        self.calibrationReading = True
+        self.calibrationFlushing = False
+        self.calibratingPoint = False
 
         """Connection Frame"""
         self.connectFrame = tkinter.Frame(self)
@@ -327,46 +343,95 @@ class MainWindow(tkinter.Frame):
         #Canvases to hold graphs for calibrations
         self.ch4CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCh4, master=self.configureFrame)
         self.ch4CalCanvas.get_tk_widget().grid(row=1, column=0, columnspan=2)
+        
+        self.setupValueCh4TimingFrame = tkinter.Frame(self.configureFrame)
+        self.setupValueCh4TimingFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupValueCh4TimingLabel = tkinter.Label(self.setupValueCh4TimingFrame, text="Valve 1 open, reading. 60s remaining.", font=self.fonts["medium"], anchor="center", justify="center")
+        self.setupValueCh4TimingLabel.pack(anchor="center", fill="x", padx=5)
         self.setupValueEntryCh4PointFrame = tkinter.Frame(self.configureFrame)
         self.setupValueEntryCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
-        self.setupValueEntryCh4PointLabel = tkinter.Label(self.setupValueEntryCh4PointFrame, text="Percent:", font=self.fonts["medium"])
-        self.setupValueEntryCh4PointLabel.pack(side="left", anchor="center")
-        self.setupValueEntryCh4PointEntry = tkinter.Entry(self.setupValueEntryCh4PointFrame, width=4, font=self.fonts["medium"])
-        self.setupValueEntryCh4PointEntry.pack(side="left", anchor="center")
-        self.setupValueEntryCh4PointAcceptButton = tkinter.Button(self.setupValueEntryCh4PointFrame, image=self.tickIcon, command="")
-        self.setupValueEntryCh4PointAcceptButton.pack(side="left", anchor="center", padx=5)
-        self.setupValueEntryCh4PointCancelButton = tkinter.Button(self.setupValueEntryCh4PointFrame, image=self.crossIcon, command="")
-        self.setupValueEntryCh4PointCancelButton.pack(side="left", anchor="center", padx=5)
+        self.setupValueCh4InternalFrame = tkinter.Frame(self.setupValueEntryCh4PointFrame)
+        self.setupValueCh4InternalFrame.pack(side="top", anchor="center")
+        self.setupValueEntryCh4PointLabel = tkinter.Label(self.setupValueCh4InternalFrame, text="Percent:", font=self.fonts["medium"])
+        self.setupValueEntryCh4PointLabel.pack(side="left", anchor="center", fill="x")
+        self.setupValueEntryCh4PointEntry = tkinter.Entry(self.setupValueCh4InternalFrame, width=5, font=self.fonts["medium"])
+        self.setupValueEntryCh4PointEntry.pack(side="left", anchor="center", fill="x")
+        self.setupValueEntryCh4PointAcceptButton = tkinter.Button(self.setupValueCh4InternalFrame, image=self.tickIcon, command=lambda:self.valueAddConfirmPressed(True))
+        self.setupValueEntryCh4PointAcceptButton.pack(side="left", anchor="center", fill="x", padx=5)
+        self.setupValueEntryCh4PointCancelButton = tkinter.Button(self.setupValueCh4InternalFrame, image=self.crossIcon, command=lambda:self.cancelPointPressed(True))
+        self.setupValueEntryCh4PointCancelButton.pack(side="left", anchor="center", fill="x", padx=5)
         self.setupCh4PointFrame = tkinter.Frame(self.configureFrame)
-        #------#self.setupCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupCh4PointFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
         self.setupCh4PointFrame.grid_rowconfigure(0, weight=1)
         self.setupCh4PointFrame.grid_columnconfigure(0, weight=1)
         self.setupCh4PointFrame.grid_columnconfigure(1, weight=1)
         self.setupCh4PointFrame.grid_columnconfigure(2, weight=1)
-        self.automaticCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Automatic", font=self.fonts["medium"], command="")
+        self.automaticCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Use Sensor Value", command=lambda:self.automaticPressed(True), font=self.fonts["medium"])
         self.automaticCh4PointButton.grid(row=0, column=0)
-        self.manualCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Manual", font=self.fonts["medium"], command="")
+        self.manualCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Manual Entry", command=lambda:self.manualPressed(True), font=self.fonts["medium"])
         self.manualCh4PointButton.grid(row=0, column=1)
-        self.cancelCh4PointButton = tkinter.Button(self.setupCh4PointFrame, text="Cancel", font=self.fonts["medium"], command="")
+        self.cancelCh4PointButton = tkinter.Button(self.setupCh4PointFrame, image=self.crossIcon, font=self.fonts["medium"], command=lambda:self.cancelPointPressed(True))
         self.cancelCh4PointButton.grid(row=0, column=2)
         self.addCh4PointButtonFrame = tkinter.Frame(self.configureFrame)
-        #------#self.addCh4PointButtonFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.addCh4PointButtonFrame.grid(row=3, column=0, columnspan=2, pady=5, sticky="NESW")
         #Buttons to allow for points to be added to calibration curves
-        self.addPointCh4Button = tkinter.Button(self.addCh4PointButtonFrame, text="+ Add Point", command=self.addPointCh4Pressed, font=self.fonts["medium"])
-        self.addPointCh4Button.grid(row=3, column=0, columnspan=2)
+        self.addPointCh4Button = tkinter.Button(self.addCh4PointButtonFrame, text="+ Add Point", command=lambda:self.addPointPressed(True), font=self.fonts["medium"])
+        self.addPointCh4Button.pack()
 
+        self.setupValueEntryCh4PointEntry.bind("<Return>", lambda entry:self.valueAddConfirmPressed(True))
+
+        self.calculateCh4Frame = tkinter.Frame(self.configureFrame)
+        self.calculateCh4Frame.grid(row=4, column=0, columnspan=2, sticky="NESW")
         #Buttons to allow for calibration values to be sent to the device
-        self.calculateCh4Button = tkinter.Button(self.configureFrame, text="Configure Calibration", command=lambda x=False: self.openCalculation(x), font=self.fonts["medium"])
-        self.calculateCh4Button.grid(row=4, column=0, columnspan=2)
+        self.calculateCh4Button = tkinter.Button(self.calculateCh4Frame, text="Configure Calibration", command=lambda:self.openCalculation(True), font=self.fonts["medium"])
+        self.calculateCh4Button.pack()
+
         #Label to mark carbon dioxide section
         self.co2ConfigLabel = tkinter.Label(self.configureFrame, text="Carbon Dioxide", font=self.fonts["large"])
         self.co2ConfigLabel.grid(row=5, column=0, columnspan=2, sticky="NESW")
         self.co2CalCanvas = FigureCanvasTkAgg(self.calibrationFigureCo2, master=self.configureFrame)
         self.co2CalCanvas.get_tk_widget().grid(row=6, column=0, columnspan=2)
-        self.addPointCo2Button = tkinter.Button(self.configureFrame, text="+ Add Point", command=self.addPointCo2Pressed, font=self.fonts["medium"])
-        self.addPointCo2Button.grid(row=7, column=0, columnspan=2)
-        self.calculateCo2Button = tkinter.Button(self.configureFrame, text="Configure Calibration", command=lambda x=True: self.openCalculation(x), font=self.fonts["medium"])
-        self.calculateCo2Button.grid(row=8, column=0, columnspan=2)
+        self.setupValueCo2TimingFrame = tkinter.Frame(self.configureFrame)
+        self.setupValueCo2TimingFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupValueCo2TimingLabel = tkinter.Label(self.setupValueCo2TimingFrame, text="Valve 1 open, reading. 60s remaining.", font=self.fonts["medium"], anchor="center", justify="center")
+        self.setupValueCo2TimingLabel.pack(anchor="center", fill="x", padx=5)
+        self.setupValueEntryCo2PointFrame = tkinter.Frame(self.configureFrame)
+        self.setupValueEntryCo2PointFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupValueCo2InternalFrame = tkinter.Frame(self.setupValueEntryCo2PointFrame)
+        self.setupValueCo2InternalFrame.pack(side="top", anchor="center")
+        self.setupValueEntryCo2PointLabel = tkinter.Label(self.setupValueCo2InternalFrame, text="Percent:", font=self.fonts["medium"])
+        self.setupValueEntryCo2PointLabel.pack(side="left", anchor="center", fill="x")
+        self.setupValueEntryCo2PointEntry = tkinter.Entry(self.setupValueCo2InternalFrame, width=5, font=self.fonts["medium"])
+        self.setupValueEntryCo2PointEntry.pack(side="left", anchor="center", fill="x")
+        self.setupValueEntryCo2PointAcceptButton = tkinter.Button(self.setupValueCo2InternalFrame, image=self.tickIcon, command=lambda:self.valueAddConfirmPressed(False))
+        self.setupValueEntryCo2PointAcceptButton.pack(side="left", anchor="center", fill="x", padx=5)
+        self.setupValueEntryCo2PointCancelButton = tkinter.Button(self.setupValueCo2InternalFrame, image=self.crossIcon, command=lambda:self.cancelPointPressed(False))
+        self.setupValueEntryCo2PointCancelButton.pack(side="left", anchor="center", fill="x", padx=5)
+        self.setupCo2PointFrame = tkinter.Frame(self.configureFrame)
+        self.setupCo2PointFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
+        self.setupCo2PointFrame.grid_rowconfigure(0, weight=1)
+        self.setupCo2PointFrame.grid_columnconfigure(0, weight=1)
+        self.setupCo2PointFrame.grid_columnconfigure(1, weight=1)
+        self.setupCo2PointFrame.grid_columnconfigure(2, weight=1)
+        self.automaticCo2PointButton = tkinter.Button(self.setupCo2PointFrame, text="Use Sensor Value", command=lambda:self.automaticPressed(False), font=self.fonts["medium"])
+        self.automaticCo2PointButton.grid(row=0, column=0)
+        self.manualCo2PointButton = tkinter.Button(self.setupCo2PointFrame, text="Manual Entry", command=lambda:self.manualPressed(False), font=self.fonts["medium"])
+        self.manualCo2PointButton.grid(row=0, column=1)
+        self.cancelCo2PointButton = tkinter.Button(self.setupCo2PointFrame, image=self.crossIcon, font=self.fonts["medium"], command=lambda:self.cancelPointPressed(False))
+        self.cancelCo2PointButton.grid(row=0, column=2)
+        self.addCo2PointButtonFrame = tkinter.Frame(self.configureFrame)
+        self.addCo2PointButtonFrame.grid(row=7, column=0, columnspan=2, pady=5, sticky="NESW")
+        #Buttons to allow for points to be added to calibration curves
+        self.addPointCo2Button = tkinter.Button(self.addCo2PointButtonFrame, text="+ Add Point", command=lambda:self.addPointPressed(False), font=self.fonts["medium"])
+        self.addPointCo2Button.pack()
+
+        self.setupValueEntryCo2PointEntry.bind("<Return>", lambda entry:self.valueAddConfirmPressed(False))
+
+        self.calculateCo2Frame = tkinter.Frame(self.configureFrame)
+        self.calculateCo2Frame.grid(row=8, column=0, columnspan=2, sticky="NESW")
+        self.calculateCo2Button = tkinter.Button(self.calculateCo2Frame, text="Configure Calibration", command=lambda:self.openCalculation(False), font=self.fonts["medium"])
+        self.calculateCo2Button.pack()
+
         #Label to act as header for channel service configuration section
         self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
         self.enabledValvesLabel.grid(row=0, column=2, columnspan=2, sticky="NESW")
@@ -1024,6 +1089,7 @@ class MainWindow(tkinter.Frame):
             #Time was set successfully
             if messageParts[1] == "timeset":
                 self.displayMessage("Time Set", "Clock time was updated successfully.")
+                self.serialConnection.write("timeget\n".encode("utf-8"))
                 self.awaiting = False
             
             #Valve timing was successfully changed
@@ -1233,7 +1299,7 @@ class MainWindow(tkinter.Frame):
                     self.ch4Values.append(value)
                     self.ch4Percentages.append(self.percentageValue)
                     #Update the regression calculation
-                    self.calculatePolynomials()
+                    self.calculatePolynomials(True)
                     self.displayMessage("Point Received Sucessfully.", "A value of {0} was received for a concentration of {1}% methane.".format(value, self.percentageValue))
                     self.awaiting = False
                     #Clear and redraw methane calibration graph
@@ -1252,7 +1318,7 @@ class MainWindow(tkinter.Frame):
                     self.co2Values.append(value)
                     self.co2Percentages.append(self.percentageValue)
                     #Update the regression calculation
-                    self.calculatePolynomials()
+                    self.calculatePolynomials(False)
                     self.displayMessage("Point Received Sucessfully.", "A value of {0} was received for a concentration of {1}% carbon dioxide.".format(value, self.percentageValue))
                     self.awaiting = False
                     #Clear and redraw carbon dioxide calibration graph
@@ -1384,6 +1450,22 @@ class MainWindow(tkinter.Frame):
                     #Update the label to display correctly
                     self.updateValveLabel()
                     self.lastEvent = time.time()
+                    if self.calibratingPoint:
+                        if changedValve == 0 and messageParts[2] == "opened":
+                            self.calibrationActionTime = time.time()
+                            self.calibrationReading = True
+                            self.calibrationFlushing = False
+                        elif self.calibrationReading and changedValve == 0 and messageParts[2] == "closed":
+                            self.calibrationReading = False
+                        elif changedValve == 15 and messageParts[2] == "opened":
+                            self.calibrationActionTime = time.time()
+                            self.calibrationFlushing = True
+                            self.calibrationReading = False
+                        elif self.calibrationFlushing and changedValve == 15 and messageParts[2] == "closed":
+                            self.calibrationFlushing = False
+                            self.calibrationReading = False
+                            self.calibratingPoint = False
+                            
             except:
                 #Ignore invalid valve data with no error
                 pass
@@ -1474,6 +1556,196 @@ class MainWindow(tkinter.Frame):
         '''Change to display the view window and alter the button text'''
         self.changeMainFrame(1)
     
+    def addPointPressed(self, methane : bool) -> None:
+        if not self.awaiting:
+            if methane:
+                self.setupCh4PointFrame.tkraise()
+            else:
+                self.setupCo2PointFrame.tkraise()
+    
+    def cancelPointPressed(self, methane : bool) -> None:
+        if not self.awaiting:
+            if methane:
+                self.addCh4PointButtonFrame.tkraise()
+            else:
+                self.addCo2PointButtonFrame.tkraise()
+    
+    def openAddPercentage(self, methane : bool) -> None:
+        if not self.awaiting:
+            if methane:
+                self.ch4AddPercent = -1
+                self.ch4AddValue = -1
+                self.setupValueEntryCh4PointLabel.configure(text="Percentage:")
+                self.setupValueEntryCh4PointEntry.delete(0, tkinter.END)
+                self.setupValueEntryCh4PointEntry.insert("0", 0)
+                self.setupValueEntryCh4PointFrame.tkraise()
+            else:
+                self.co2AddPercent = -1
+                self.co2AddValue = -1
+                self.setupValueEntryCo2PointLabel.configure(text="Percentage:")
+                self.setupValueEntryCo2PointEntry.delete(0, tkinter.END)
+                self.setupValueEntryCo2PointEntry.insert("0", 0)
+                self.setupValueEntryCo2PointFrame.tkraise()
+    
+    def openAddValue(self, methane : bool) -> None:
+        if not self.awaiting:
+            if methane:
+                self.setupValueEntryCh4PointLabel.configure(text="Millivolts:")
+                self.setupValueEntryCh4PointEntry.delete(0, tkinter.END)
+                self.setupValueEntryCh4PointEntry.insert("0", 0)
+                self.setupValueEntryCh4PointFrame.tkraise()
+            else:
+                self.setupValueEntryCo2PointLabel.configure(text="Millivolts:")
+                self.setupValueEntryCo2PointEntry.delete(0, tkinter.END)
+                self.setupValueEntryCo2PointEntry.insert("0", 0)
+                self.setupValueEntryCo2PointFrame.tkraise()
+    
+    def manualPressed(self, methane : bool) -> None:
+        if not self.awaiting:
+            if methane:
+                self.ch4AddType = "man"
+            else:
+                self.co2AddType = "man"
+
+        self.openAddPercentage(methane)
+
+    def automaticPressed(self, methane : bool) -> None:
+        if not self.awaiting:
+            if methane:
+                self.ch4AddType = "auto"
+            else:
+                self.co2AddType = "auto"
+        
+        self.openAddPercentage(methane)
+    
+    def valueAddConfirmPressed(self, methane : bool) -> None:
+        if not self.awaiting:
+            if (methane and self.ch4AddPercent == -1) or ((not methane) and self.co2AddPercent == -1):
+                maximum = 100
+            else:
+                maximum = 8191
+            enteredValue = -1
+            failed = False
+            try:
+                if methane:
+                    valueFromEntry = self.setupValueEntryCh4PointEntry.get()
+                else:
+                    valueFromEntry = self.setupValueEntryCo2PointEntry.get()
+                if len(valueFromEntry) > 0:
+                    enteredValue = int(valueFromEntry)
+                else:
+                    self.displayMessage("Invalid Value", "Must enter a number")
+            except:
+                self.displayMessage("Invalid Value", "Must enter a number")
+                failed = True
+            if not failed:
+                if enteredValue > -1 and enteredValue <= maximum:
+                    if (methane and self.ch4AddPercent == -1) or ((not methane) and self.co2AddPercent == -1):
+                        if methane:
+                            print("Setting percentage")
+                            self.ch4AddPercent = enteredValue
+                        else:
+                            self.co2AddPercent = enteredValue
+                        if (methane and self.ch4AddType == "auto") or (not methane and self.co2AddType == "auto"):
+                            if methane:
+                                self.serialConnection.write("point ch4 {0}\n".format(self.calibrationReadTime * 1000).encode("utf-8"))
+                            else:
+                                self.serialConnection.write("point co2 {0}\n".format(self.calibrationReadTime * 1000).encode("utf-8"))
+                            self.awaiting = True
+                            self.percentageValue = enteredValue
+                            self.calibratingMethane = methane
+                            self.setupCalibrationTiming()
+                        else:
+                            self.openAddValue(methane)
+                    else:
+                        if methane:
+                            self.ch4AddValue = enteredValue
+                        else:
+                            self.co2AddValue = enteredValue
+                        self.addPointValues(methane)
+                else:
+                    self.displayMessage("Invalid Value", "Must be between 0 and {0}".format(maximum))
+    
+    def addPointValues(self, methane : bool) -> None:
+        if methane:
+            self.ch4Percentages.append(self.ch4AddPercent)
+            self.ch4Values.append(self.ch4AddValue)
+            self.ch4AddPercent = -1
+            self.ch4AddValue = -1
+        else:
+            self.co2Percentages.append(self.co2AddPercent)
+            self.co2Values.append(self.co2AddValue)
+            self.ch4AddPercent = -1
+            self.ch4AddValue = -1
+
+        self.cancelPointPressed(methane)
+        
+        self.calculatePolynomials(methane)
+        self.updateGraph(methane)
+
+    def updateGraph(self, methane : bool) -> None:
+        if methane:
+            self.ch4CalPlot.clear()
+            for i in range(0, len(self.ch4Values)):
+                if i < len(self.ch4Percentages):
+                    self.ch4CalPlot.scatter(self.ch4Values[i], self.ch4Percentages[i], c="blue")
+            self.ch4CalPlot.set_title("Methane Calibration")
+            #If there is a suitable regression - display it too
+            if len(self.ch4Percentages) > 1:
+                self.ch4CalPlot.plot(self.ch4PlotPoints[0], self.ch4PlotPoints[1], c="red")
+            self.ch4CalCanvas.draw()
+        else:
+            self.co2CalPlot.clear()
+            for i in range(0, len(self.co2Values)):
+                if i < len(self.co2Percentages):
+                    self.co2CalPlot.scatter(self.co2Values[i], self.co2Percentages[i], c="blue")
+            self.co2CalPlot.set_title("Carbon Dioxide Calibration")
+            if len(self.co2Percentages) > 1:
+                self.co2CalPlot.plot(self.co2PlotPoints[0], self.co2PlotPoints[1], c="red")
+            self.co2CalCanvas.draw()
+
+    def setupCalibrationTiming(self) -> None:
+        self.calibrationActionTime = time.time()
+        if self.calibratingMethane:
+            self.setupValueCh4TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(self.calibrationReadTime))
+            self.setupValueCh4TimingFrame.tkraise()
+        else:
+            self.setupValueCo2TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(self.calibrationReadTime))
+            self.setupValueCo2TimingFrame.tkraise()
+        
+        self.calibrationReading = True
+        self.calibrationFlushing = False
+        self.calibratingPoint = True
+
+        self.updateCalibrationTiming()
+    
+    def updateCalibrationTiming(self) -> None:
+        if self.calibrationReading:
+            remaining = max(int(self.calibrationReadTime - (time.time() - self.calibrationActionTime)), 0)
+            if self.calibratingMethane:
+                self.setupValueCh4TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(remaining))
+            else:
+                self.setupValueCo2TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(remaining))
+        elif self.calibrationFlushing:
+            remaining = max(int(self.calibrationFlushTime - (time.time() - self.calibrationActionTime)), 0)
+            if self.calibratingMethane:
+                self.setupValueCh4TimingLabel.configure(text="Valve 16 Open, flushing. {0}s remaining.".format(remaining))
+            else:
+                self.setupValueCo2TimingLabel.configure(text="Valve 16 Open, flushing. {0}s remaining.".format(remaining))
+        else:
+            if self.calibratingMethane:
+                self.setupValueCh4TimingLabel.configure(text="Waiting.")
+            else:
+                self.setupValueCo2TimingLabel.configure(text="Waiting.")
+
+        if self.calibratingPoint:
+            self.after(10, self.updateCalibrationTiming)
+        else:
+            if self.calibratingMethane:
+                self.addCh4PointButtonFrame.tkraise()
+            else:
+                self.addCo2PointButtonFrame.tkraise()
+
     def addPointCh4Pressed(self) -> None:
         '''When add button is pressed on methane'''
         #Ask for manual or sensor entry
@@ -1532,47 +1804,48 @@ class MainWindow(tkinter.Frame):
             #Add the point data manually
             self.addCustomCarbonDioxide()
 
-    def calculatePolynomials(self) -> None:
+    def calculatePolynomials(self, methane : bool) -> None:
         '''Perform linear regression on the calibration points if possible'''
-        #If there is more than one methane point
-        if len(self.ch4Percentages) > 1:
-            #Calculate the order - currently unneccesary as only linear is used
-            order = min(1, len(self.ch4Percentages) - 1)
-            #Convert to polynomial object
-            pObject = numpy.polynomial.Polynomial.fit(self.ch4Values, self.ch4Percentages, order)
-            #Store regression - coefficient values from fit
-            self.ch4Regression = pObject.convert().coef
-            #Reverse values
-            self.ch4Regression = self.ch4Regression[::-1]
-            #Round to 4 decimal places
-            for i in range(0, len(self.ch4Regression)):
-                self.ch4Regression[i] = round(self.ch4Regression[i], 4)
-            #Generate set of plot points so it can be displayed on the graph
-            self.ch4PlotPoints = [[],[]]
-            for i in range(min(self.ch4Values), max(self.ch4Values) + 1):
-                value = pObject(i)
-                self.ch4PlotPoints[0].append(i)
-                self.ch4PlotPoints[1].append(value)
-
-        #If there is more than one carbon dioxide point
-        if len(self.co2Percentages) > 1:
-            #Calculate the order - currently unneccesary as only linear is used
-            order = min(1, len(self.co2Percentages) - 1)
-            #Convert to polynomial object
-            pObject = numpy.polynomial.Polynomial.fit(self.co2Values, self.co2Percentages, order)
-            #Store regression - coefficient values from fit
-            self.co2Regression = pObject.convert().coef
-            #Reverse values
-            self.co2Regression = self.co2Regression[::-1]
-            #Round to 4 decimal places
-            for i in range(0, len(self.co2Regression)):
-                self.co2Regression[i] = round(self.co2Regression[i], 4)
-            #Generate set of plot points so it can be displayed on the graph
-            self.co2PlotPoints = [[],[]]
-            for i in range(min(self.co2Values), max(self.co2Values) + 1):
-                value = pObject(i)
-                self.co2PlotPoints[0].append(i)
-                self.co2PlotPoints[1].append(value)
+        if methane:
+            #If there is more than one methane point
+            if len(self.ch4Percentages) > 1:
+                #Calculate the order - currently unneccesary as only linear is used
+                order = min(1, len(self.ch4Percentages) - 1)
+                #Convert to polynomial object
+                pObject = numpy.polynomial.Polynomial.fit(self.ch4Values, self.ch4Percentages, order)
+                #Store regression - coefficient values from fit
+                self.ch4Regression = pObject.convert().coef
+                #Reverse values
+                self.ch4Regression = self.ch4Regression[::-1]
+                #Round to 4 decimal places
+                for i in range(0, len(self.ch4Regression)):
+                    self.ch4Regression[i] = round(self.ch4Regression[i], 4)
+                #Generate set of plot points so it can be displayed on the graph
+                self.ch4PlotPoints = [[],[]]
+                for i in range(min(self.ch4Values), max(self.ch4Values) + 1):
+                    value = pObject(i)
+                    self.ch4PlotPoints[0].append(i)
+                    self.ch4PlotPoints[1].append(value)
+        else:
+            #If there is more than one carbon dioxide point
+            if len(self.co2Percentages) > 1:
+                #Calculate the order - currently unneccesary as only linear is used
+                order = min(1, len(self.co2Percentages) - 1)
+                #Convert to polynomial object
+                pObject = numpy.polynomial.Polynomial.fit(self.co2Values, self.co2Percentages, order)
+                #Store regression - coefficient values from fit
+                self.co2Regression = pObject.convert().coef
+                #Reverse values
+                self.co2Regression = self.co2Regression[::-1]
+                #Round to 4 decimal places
+                for i in range(0, len(self.co2Regression)):
+                    self.co2Regression[i] = round(self.co2Regression[i], 4)
+                #Generate set of plot points so it can be displayed on the graph
+                self.co2PlotPoints = [[],[]]
+                for i in range(min(self.co2Values), max(self.co2Values) + 1):
+                    value = pObject(i)
+                    self.co2PlotPoints[0].append(i)
+                    self.co2PlotPoints[1].append(value)
 
     def addCustomMethane(self) -> None:
         '''Allow the user to enter their own data point for methane calibration'''
@@ -1614,71 +1887,94 @@ class MainWindow(tkinter.Frame):
                     self.co2CalPlot.plot(self.co2PlotPoints[0], self.co2PlotPoints[1], c="red")
                 self.co2CalCanvas.draw()
 
-    def openCalculation(self, co2) -> None:
+    def openCalculation(self, methane) -> None:
         '''Open the calculations window with the correct values and heading'''
-        #Clear the temporary labels, if they exist
-        for label in self.tempLabels:
-            label.destroy()
-        self.tempLabels = []
-        #If displaying carbon dioxide
-        if co2:
-            #Set the correct title
-            self.calculationsWindowHeader.configure(text="Carbon Dioxide Calculations")
-            regressionUsed = False
-            #Iterate through coefficients for the polynomial
-            for i in range(0, 4):
-                #If there is a value in the regression to enter
-                if len(self.co2Regression) > i:
-                    self.calValues[i].set(str(self.co2Regression[-(i + 1)]))
-                    regressionUsed = True
-                else:
-                    #If the regression is not present and there is a calibration from the device
-                    if self.calibrationUpdated and not regressionUsed:
-                        #Use value given by device
-                        self.calValues[i].set(self.storedCalibration[1][i])
+        if not self.awaiting:
+            #Clear the temporary labels, if they exist
+            for label in self.tempLabels:
+                label.destroy()
+            self.tempLabels = []
+            #If displaying carbon dioxide
+            if methane:
+                #Set correct title
+                self.calculationsWindowHeader.configure(text="Methane Calculations")
+                regressionUsed = False
+                #Iterate through coefficients for the polynomial
+                for i in range(0, 4):
+                    #If there is a value in the regression to enter
+                    if len(self.ch4Regression) > i:
+                        self.calValues[i].set(str(self.ch4Regression[-(i + 1)]))
+                        regressionUsed = True
                     else:
-                        #Use a 0 for the value
-                        self.calValues[i].set("0.0")
-            #Iterate through points
-            for i in range(0, len(self.co2Percentages)):
-                if i < len(self.co2Values):
-                    #Create label to display value
-                    item = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="{0}% : {1}".format(self.co2Percentages[i], self.co2Values[i]))
-                    item.grid(row=i + 3, column=0, columnspan=9, sticky="NESW")
-                    self.tempLabels.append(item)
-        #Displaying methane
-        else:
-            #Set correct title
-            self.calculationsWindowHeader.configure(text="Methane Calculations")
-            regressionUsed = False
-            #Iterate through coefficients for the polynomial
-            for i in range(0, 4):
-                #If there is a value in the regression to enter
-                if len(self.ch4Regression) > i:
-                    self.calValues[i].set(str(self.ch4Regression[-(i + 1)]))
-                    regressionUsed = True
-                else:
-                    #If the regression is not present and there is a calibration from the device
-                    if self.calibrationUpdated and not regressionUsed:
-                        #Use value given by device
-                        self.calValues[i].set(self.storedCalibration[0][i])
+                        #If the regression is not present and there is a calibration from the device
+                        if self.calibrationUpdated and not regressionUsed:
+                            #Use value given by device
+                            self.calValues[i].set(self.storedCalibration[0][i])
+                        else:
+                            #Use a 0 for the value
+                            self.calValues[i].set("0.0")
+                #Iterate through points
+                for i in range(0, len(self.ch4Percentages)):
+                    if i < len(self.ch4Values):
+                        #Create label to display value
+                        item = tkinter.Frame(self.calculationsWindow)
+                        label = tkinter.Label(item, font=self.fonts["small"], text="{0}% : {1}".format(self.ch4Percentages[i], self.ch4Values[i]))
+                        label.pack(side="left", anchor="center", expand=True, fill=None, padx=5)
+                        deleteButton = tkinter.Button(item, image=self.smallCrossIcon, command=lambda x=i:self.deletePoint(True, x))
+                        deleteButton.pack(side="left", anchor="center", expand=True, fill=None, padx=5)
+                        item.grid(row=i + 3, column=0, columnspan=9, sticky="NESW")
+                        self.tempLabels.append(item)
+            #Displaying methane
+            else:
+                #Set the correct title
+                self.calculationsWindowHeader.configure(text="Carbon Dioxide Calculations")
+                regressionUsed = False
+                #Iterate through coefficients for the polynomial
+                for i in range(0, 4):
+                    #If there is a value in the regression to enter
+                    if len(self.co2Regression) > i:
+                        self.calValues[i].set(str(self.co2Regression[-(i + 1)]))
+                        regressionUsed = True
                     else:
-                        #Use a 0 for the value
-                        self.calValues[i].set("0.0")
-            #Iterate through points
-            for i in range(0, len(self.ch4Percentages)):
-                if i < len(self.ch4Values):
-                    #Create label to display value
-                    item = tkinter.Label(self.calculationsWindow, font=self.fonts["small"], text="{0}% : {1}".format(self.ch4Percentages[i], self.ch4Values[i]))
-                    item.grid(row=i + 3, column=0, columnspan=9, sticky="NESW")
-                    self.tempLabels.append(item)
-        
-        #Store which of the windows is being accessed
-        self.methaneOpen = not co2
-        self.carbonDioxideOpen = co2
-        
-        #Display the calculations window
-        self.calculationsWindow.deiconify()
+                        #If the regression is not present and there is a calibration from the device
+                        if self.calibrationUpdated and not regressionUsed:
+                            #Use value given by device
+                            self.calValues[i].set(self.storedCalibration[1][i])
+                        else:
+                            #Use a 0 for the value
+                            self.calValues[i].set("0.0")
+                #Iterate through points
+                for i in range(0, len(self.co2Percentages)):
+                    if i < len(self.co2Values):
+                        #Create label to display value
+                        item = tkinter.Frame(self.calculationsWindow)
+                        label = tkinter.Label(item, font=self.fonts["small"], text="{0}% : {1}".format(self.co2Percentages[i], self.co2Values[i]))
+                        label.pack(side="left", anchor="center", expand=True, fill=None, padx=5)
+                        deleteButton = tkinter.Button(item, image=self.smallCrossIcon, command=lambda x=i:self.deletePoint(False, x))
+                        deleteButton.pack(side="left", anchor="center", fill=None, padx=5)
+                        item.grid(row=i + 3, column=0, columnspan=9, sticky="NESW")
+                        self.tempLabels.append(item)
+            
+            #Store which of the windows is being accessed
+            self.methaneOpen = methane
+            self.carbonDioxideOpen = not methane
+            
+            #Display the calculations window
+            self.calculationsWindow.deiconify()
+
+    def deletePoint(self, methane : bool, index : int):
+        if methane and index > -1 and index < len(self.ch4Percentages) and index < len(self.ch4Values):
+            del self.ch4Percentages[index]
+            del self.ch4Values[index]
+            self.closeCalculations()
+            self.calculatePolynomials(True)
+            self.updateGraph(True)
+        elif (not methane) and index > -1 and index < len(self.co2Percentages) and index < len(self.co2Values):
+            del self.co2Percentages[index]
+            del self.co2Values[index]
+            self.closeCalculations()
+            self.calculatePolynomials(False)
+            self.updateGraph(False)
 
     def closeCalculations(self) -> None:
         '''Hide the calculations window and reset which one is open'''
@@ -2242,6 +2538,7 @@ class MainWindow(tkinter.Frame):
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def closeWindow(self) -> None:
+        if not self.awaiting:
             if self.currentMain == 0:
                 self.parent.destroy()
             elif self.currentMain == 1:
@@ -2259,8 +2556,8 @@ if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
     #Set the shape of the window
-    root.geometry("900x700")
-    root.minsize(900, 700)
+    root.geometry("900x760")
+    root.minsize(900, 760)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
