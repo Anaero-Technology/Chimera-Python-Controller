@@ -1481,19 +1481,29 @@ class MainWindow(tkinter.Frame):
                         self.valveStates[i] = i == changedValve and messageParts[2] == "opened"
                     #Update the label to display correctly
                     self.updateValveLabel()
+                    #Store the time of the event
                     self.lastEvent = time.time()
+                    #If currently reading a calibration point
                     if self.calibratingPoint:
+                        #If first valve and opened
                         if changedValve == 0 and messageParts[2] == "opened":
+                            #Store time, start reading mode
                             self.calibrationActionTime = time.time()
                             self.calibrationReading = True
                             self.calibrationFlushing = False
+                        #If first valve and closed
                         elif self.calibrationReading and changedValve == 0 and messageParts[2] == "closed":
+                            #No longer reading sensor
                             self.calibrationReading = False
+                        #If flush valve and opened
                         elif changedValve == 15 and messageParts[2] == "opened":
+                            #Store time, start flush mode
                             self.calibrationActionTime = time.time()
                             self.calibrationFlushing = True
                             self.calibrationReading = False
+                        #If closing flush valve
                         elif self.calibrationFlushing and changedValve == 15 and messageParts[2] == "closed":
+                            #Reset all calibration timing
                             self.calibrationFlushing = False
                             self.calibrationReading = False
                             self.calibratingPoint = False
@@ -1689,32 +1699,41 @@ class MainWindow(tkinter.Frame):
                 if enteredValue > -1 and enteredValue <= maximum:
                     #If this is the first item - percentage
                     if (methane and self.ch4AddPercent == -1) or ((not methane) and self.co2AddPercent == -1):
-                        #Set value
+                        #Set value in the percentage
                         if methane:
                             self.ch4AddPercent = enteredValue
                         else:
                             self.co2AddPercent = enteredValue
+                        #If this is in automatic mode
                         if (methane and self.ch4AddType == "auto") or (not methane and self.co2AddType == "auto"):
+                            #Make the correct request for a data point
                             if methane:
                                 self.sendMessage("point ch4 {0}\n".format(self.calibrationReadTime * 1000))
                             else:
                                 self.sendMessage("point co2 {0}\n".format(self.calibrationReadTime * 1000))
+                            #Wait for a response and store the correct values
                             self.awaiting = True
                             self.percentageValue = enteredValue
                             self.calibratingMethane = methane
+                            #Start displaying the timing
                             self.setupCalibrationTiming()
                         else:
+                            #If in manual mode open the request for the next data item
                             self.openAddValue(methane)
                     else:
+                        #If this is the millivolt value - store the number
                         if methane:
                             self.ch4AddValue = enteredValue
                         else:
                             self.co2AddValue = enteredValue
+                        #Add the stored values for the apropriate gas
                         self.addPointValues(methane)
                 else:
                     self.displayMessage("Invalid Value", "Must be between 0 and {0}".format(maximum))
     
     def addPointValues(self, methane : bool) -> None:
+        '''Add the entered values to the plot'''
+        #Add to lists and reset stored values
         if methane:
             self.ch4Percentages.append(self.ch4AddPercent)
             self.ch4Values.append(self.ch4AddValue)
@@ -1723,17 +1742,23 @@ class MainWindow(tkinter.Frame):
         else:
             self.co2Percentages.append(self.co2AddPercent)
             self.co2Values.append(self.co2AddValue)
-            self.ch4AddPercent = -1
-            self.ch4AddValue = -1
+            self.co2AddPercent = -1
+            self.co2AddValue = -1
 
+        #Return to default view of add section
         self.cancelPointPressed(methane)
-        
+        #Close the calculations window so it can be appropriately updated
+        self.closeCalculations()
+        #Recalculate and display correct graph
         self.calculatePolynomials(methane)
         self.updateGraph(methane)
 
     def updateGraph(self, methane : bool) -> None:
+        '''Redraw the graph'''
         if methane:
+            #Clear the graph
             self.ch4CalPlot.clear()
+            #Iterate through the values and add them to the axes
             for i in range(0, len(self.ch4Values)):
                 if i < len(self.ch4Percentages):
                     self.ch4CalPlot.scatter(self.ch4Values[i], self.ch4Percentages[i], c="blue")
@@ -1743,114 +1768,75 @@ class MainWindow(tkinter.Frame):
                 self.ch4CalPlot.plot(self.ch4PlotPoints[0], self.ch4PlotPoints[1], c="red")
             self.ch4CalCanvas.draw()
         else:
+            #Clear the graph
             self.co2CalPlot.clear()
+            #Iterate through the values and add them to the axes
             for i in range(0, len(self.co2Values)):
                 if i < len(self.co2Percentages):
                     self.co2CalPlot.scatter(self.co2Values[i], self.co2Percentages[i], c="blue")
             self.co2CalPlot.set_title("Carbon Dioxide Calibration")
+            #If there is a suitable regression - display it too
             if len(self.co2Percentages) > 1:
                 self.co2CalPlot.plot(self.co2PlotPoints[0], self.co2PlotPoints[1], c="red")
             self.co2CalCanvas.draw()
 
     def setupCalibrationTiming(self) -> None:
+        '''Initialise the frame that shows how long is left on the calibration reading'''
+        #Stotr the event time
         self.calibrationActionTime = time.time()
         if self.calibratingMethane:
+            #Set label and bring to top - methane
             self.setupValueCh4TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(self.calibrationReadTime))
             self.setupValueCh4TimingFrame.tkraise()
         else:
+            #Set label and bring to top - carbon dioxide
             self.setupValueCo2TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(self.calibrationReadTime))
             self.setupValueCo2TimingFrame.tkraise()
         
+        #Currently calibrating, reading, not flushing
         self.calibrationReading = True
         self.calibrationFlushing = False
         self.calibratingPoint = True
 
+        #Start updating the display
         self.updateCalibrationTiming()
     
     def updateCalibrationTiming(self) -> None:
+        '''Keep the display up to date on the calibration timing'''
+        #If in reading mode
         if self.calibrationReading:
+            #Calculate remaining time in seconds
             remaining = max(int(self.calibrationReadTime - (time.time() - self.calibrationActionTime)), 0)
+            #Set text of appropriate label
             if self.calibratingMethane:
                 self.setupValueCh4TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(remaining))
             else:
                 self.setupValueCo2TimingLabel.configure(text="Valve 1 open, reading. {0}s remaining.".format(remaining))
+        #If in flushing mode
         elif self.calibrationFlushing:
+            #Calculate remaining time in seconds
             remaining = max(int(self.calibrationFlushTime - (time.time() - self.calibrationActionTime)), 0)
+            #Set text of appropriate label
             if self.calibratingMethane:
                 self.setupValueCh4TimingLabel.configure(text="Valve 16 Open, flushing. {0}s remaining.".format(remaining))
             else:
                 self.setupValueCo2TimingLabel.configure(text="Valve 16 Open, flushing. {0}s remaining.".format(remaining))
+        #If waiting between actions - set the label to reflect this
         else:
             if self.calibratingMethane:
                 self.setupValueCh4TimingLabel.configure(text="Waiting.")
             else:
                 self.setupValueCo2TimingLabel.configure(text="Waiting.")
 
+        #If still doing a calibration - loop this set of actions
         if self.calibratingPoint:
             self.after(10, self.updateCalibrationTiming)
         else:
+            #Return to default view of add screen
             if self.calibratingMethane:
                 self.addCh4PointButtonFrame.tkraise()
             else:
                 self.addCo2PointButtonFrame.tkraise()
-
-    def addPointCh4Pressed(self) -> None:
-        '''When add button is pressed on methane'''
-        #Ask for manual or sensor entry
-        response = messagebox.askquestion(title="Manual or Using Sensor", message="Do you want to read the value from the sensor? Sensor is connected to channel 1, otherwise enter the values manually.")
-        if response == "yes":
-            #Attempt sensor reading for point
-            if self.connected and not self.awaiting:
-                #Ask the user for a percentage of methane in the gas
-                percent = simpledialog.askinteger(title="What Percentage?", prompt="Enter the percentage concentration of methane.", initialvalue=0)
-                #Check that the value is a valid integer
-                if type(percent) == int:
-                    if percent < 0 or percent > 100:
-                        self.displayMessage("Invalid Value", "Must be a percentage between 0 and 100.")
-                    else:
-                        #Ask the user how long to take the reading for
-                        time = simpledialog.askinteger(title="How long to read?", prompt="Enter how many seconds to read the sensor value for.", initialvalue=5)
-                        #Check it is a valid integer
-                        if type(time) == int:
-                            if time < 1 or time > 60 * 60:
-                                self.displayMessage("Invalid Value", "Must be at least 1 second and no longer than an hour.")
-                            else:
-                                #Ask the device for a calibration point for methane
-                                self.sendMessage("point ch4 {0}\n".format(time * 1000))
-                                self.awaiting = True
-                                self.percentageValue = percent
-        elif response == "no":
-            #Add point data manually
-            self.addCustomMethane()
-    
-    def addPointCo2Pressed(self) -> None:
-        '''When add button is pressed on carbon dioxide'''
-        #Ask for manual or sensor entry
-        response = messagebox.askquestion(title="Manual or Using Sensor", message="Do you want to read the value from the sensor? Sensor is connected to channel 1, otherwise enter the values manually.")
-        if response == "yes":
-            #Attempt sensor reading for point
-            if self.connected and not self.awaiting and self.calibrating:
-                #Ask the user for a percentage of carbon dioxide in the gas
-                percent = simpledialog.askinteger(title="What Percentage?", prompt="Enter the percentage concentration of carbon dioxide.", initialvalue=0)
-                #Check that the value is a valid integer
-                if type(percent) == int:
-                    if percent < 0 or percent > 100:
-                        self.displayMessage("Invalid Value", "Must be a percentage between 0 and 100.")
-                    else:
-                        #Ask the user how long to take the reading for
-                        time = simpledialog.askinteger(title="How long to read?", prompt="Enter how many seconds to read the sensor value for.", initialvalue=5)
-                        #Check it is a valid integer
-                        if type(time) == int:
-                            if time < 1 or time > 60 * 60:
-                                self.displayMessage("Invalid Value", "Must be at least 1 second and no longer than an hour.")
-                            else:
-                                #Ask the device for a calibration point for carbon dioxide
-                                self.sendMessage("point co2 {0}\n".format(time * 1000))
-                                self.awaiting = True
-                                self.percentageValue = percent
-        elif response == "no":
-            #Add the point data manually
-            self.addCustomCarbonDioxide()
 
     def calculatePolynomials(self, methane : bool) -> None:
         '''Perform linear regression on the calibration points if possible'''
@@ -1894,46 +1880,6 @@ class MainWindow(tkinter.Frame):
                     value = pObject(i)
                     self.co2PlotPoints[0].append(i)
                     self.co2PlotPoints[1].append(value)
-
-    def addCustomMethane(self) -> None:
-        '''Allow the user to enter their own data point for methane calibration'''
-        #Ask the user for the x value (millivolts as an integer)
-        xPoint = simpledialog.askinteger(title="Enter Millivolt Value", prompt="Enter x axis value", initialvalue=0)
-        if type(xPoint) == int: 
-            #Ask the user for the percentage value (integer)
-            yPoint = simpledialog.askinteger(title="Enter Percentage Value", prompt="Enter y axis value", initialvalue=0)
-            if type(yPoint) == int:
-                #Add point to stored values and update polynomial best fits
-                self.ch4Percentages.append(yPoint)
-                self.ch4Values.append(xPoint)
-                self.calculatePolynomials()
-                #Redraw the methane calibration plot
-                self.ch4CalPlot.clear()
-                for i in range(0, len(self.ch4Values)):
-                    if i < len(self.ch4Percentages):
-                        self.ch4CalPlot.scatter(self.ch4Values[i], self.ch4Percentages[i], c="blue")
-                self.ch4CalPlot.set_title("Methane Calibration")
-                #If there is a suitable regression - display it too
-                if len(self.ch4Percentages) > 1:
-                    self.ch4CalPlot.plot(self.ch4PlotPoints[0], self.ch4PlotPoints[1], c="red")
-                self.ch4CalCanvas.draw()
-    
-    def addCustomCarbonDioxide(self) -> None:
-        xPoint = simpledialog.askinteger(title="Enter Millivolt Value", prompt="Enter x axis value", initialvalue=0)
-        if type(xPoint) == int:
-            yPoint = simpledialog.askinteger(title="Enter Percentage Value", prompt="Enter y axis value", initialvalue=0)
-            if type(yPoint) == int:
-                self.co2Percentages.append(yPoint)
-                self.co2Values.append(xPoint)
-                self.calculatePolynomials()
-                self.co2CalPlot.clear()
-                for i in range(0, len(self.co2Values)):
-                    if i < len(self.co2Percentages):
-                        self.co2CalPlot.scatter(self.co2Values[i], self.co2Percentages[i], c="blue")
-                self.co2CalPlot.set_title("Carbon Dioxide Calibration")
-                if len(self.co2Percentages) > 1:
-                    self.co2CalPlot.plot(self.co2PlotPoints[0], self.co2PlotPoints[1], c="red")
-                self.co2CalCanvas.draw()
 
     def openCalculation(self, methane) -> None:
         '''Open the calculations window with the correct values and heading'''
@@ -2010,16 +1956,23 @@ class MainWindow(tkinter.Frame):
             #Display the calculations window
             self.calculationsWindow.deiconify()
 
-    def deletePoint(self, methane : bool, index : int):
+    def deletePoint(self, methane : bool, index : int) -> None:
+        '''Erase the calibration point at the given index from the correct gas'''
+        #If methane and within the list
         if methane and index > -1 and index < len(self.ch4Percentages) and index < len(self.ch4Values):
+            #Remove the values
             del self.ch4Percentages[index]
             del self.ch4Values[index]
+            #Close the calculations window and call for a recalculate
             self.closeCalculations()
             self.calculatePolynomials(True)
             self.updateGraph(True)
+        #If carbon dioxide and within the list
         elif (not methane) and index > -1 and index < len(self.co2Percentages) and index < len(self.co2Values):
+            #Remove the values
             del self.co2Percentages[index]
             del self.co2Values[index]
+            #Close the calculations window and call for a recalculate
             self.closeCalculations()
             self.calculatePolynomials(False)
             self.updateGraph(False)
@@ -2121,6 +2074,7 @@ class MainWindow(tkinter.Frame):
         '''Open the graph for the peak values for a given channel'''
         ch4Calibrated = False
         co2Calibrated = False
+        #Check if there are any given calibration values
         for i in range(0, 4):
             if self.storedCalibration[0][i] != 0:
                 ch4Calibrated = True
@@ -2132,27 +2086,35 @@ class MainWindow(tkinter.Frame):
             yData = []
             #Take the data for the appropriate gas and add its information to the axes, should they exist
             if methane:
-                if len(self.ch4DebugData[channel]) > 0:
-                    for i in range(0, len(self.ch4DebugData[channel])):
-                        xData.append(i)
-                        if not ch4Calibrated:
-                            yData.append(self.ch4DebugData[channel][i])
-                        else:
-                            value = 0
-                            for j in range(0, 4):
-                                value = value + (self.storedCalibration[0][j] * (self.ch4DebugData[channel][i] ** j))
-                            yData.append(value)
+                #Iterate through data elements
+                for i in range(0, len(self.ch4DebugData[channel])):
+                    #Add index to x axis
+                    xData.append(i)
+                    #If there is not a methane calibration then use the millivolt values
+                    if not ch4Calibrated:
+                        yData.append(self.ch4DebugData[channel][i])
+                    else:
+                        value = 0
+                        #Convert to percentage using polynomial
+                        for j in range(0, 4):
+                            value = value + (self.storedCalibration[0][j] * (self.ch4DebugData[channel][i] ** j))
+                        #Add value to y axis
+                        yData.append(value)
             else:
-                if len(self.co2DebugData[channel]) > 0:
-                    for i in range(0, len(self.co2DebugData[channel])):
-                        xData.append(i)
-                        if not co2Calibrated:
-                            yData.append(self.co2DebugData[channel][i])
-                        else:
-                            value = 0
-                            for j in range(0, 4):
-                                value = value + (self.storedCalibration[1][j] * (self.co2DebugData[channel][i] ** j))
-                            yData.append(value)
+                #Iterate through data elements
+                for i in range(0, len(self.co2DebugData[channel])):
+                    #Add index to x axis
+                    xData.append(i)
+                    #If there is not a carbon dioxide calibration then use the millivolt values
+                    if not co2Calibrated:
+                        yData.append(self.co2DebugData[channel][i])
+                    else:
+                        value = 0
+                        #Convert to percentage using polynomial
+                        for j in range(0, 4):
+                            value = value + (self.storedCalibration[1][j] * (self.co2DebugData[channel][i] ** j))
+                        #Add value to y axis
+                        yData.append(value)
             
             #If there was data
             if len(xData) > 0 and len(yData) > 0:
@@ -2607,16 +2569,21 @@ class MainWindow(tkinter.Frame):
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def closeWindow(self) -> None:
+        #If something is not currently happening
         if not self.awaiting:
+            #If on the connect screen, close the whole program
             if self.currentMain == 0:
                 self.parent.destroy()
+            #If on the view screen, disconnect if necessary, otherwise close the whole program
             elif self.currentMain == 1:
                 if self.connected and self.serialConnection != None:
                     self.disconnect()
                 else:
                     self.parent.destroy()
+            #If on the configure screen, trigger normal process to return if possible
             elif self.currentMain == 2:
                 self.endConfigurePressed()
+            #If on the files screen, trigger normal process to return if possible
             elif self.currentMain == 3:
                 self.closeFileView()
 
@@ -2635,6 +2602,7 @@ if __name__ == "__main__":
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
+    #Set the icon
     ico = Image.open(window.pathTo("images/icon.png"))
     photo = ImageTk.PhotoImage(ico)
     root.wm_iconphoto(True, photo)
