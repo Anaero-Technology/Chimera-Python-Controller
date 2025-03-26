@@ -1,7 +1,7 @@
 import tkinter
 import tkinter.ttk as Ttk
 from tkinter.ttk import Style
-from tkinter import messagebox, simpledialog, filedialog, font
+from tkinter import messagebox, filedialog, font
 import serial
 from matplotlib.figure import Figure 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
@@ -829,15 +829,6 @@ class MainWindow(tkinter.Frame):
             #Scan again shortly
             self.after(150, self.performScan)
 
-    def trySelectPort(self, portName) -> None:
-        '''Attempt to select a given port name - if it still exists'''
-        #If not already connected to a device
-        if not self.connected:
-            #If the port name exists
-            if portName in self.portLabels:
-                #Switch to that port as selected
-                self.selectedPort.set(portName)
-
     def configurePressed(self) -> None:
         '''Enter configure mode and send messages to gas sensor accordingly'''
         if self.connected and not self.awaiting:
@@ -1011,7 +1002,7 @@ class MainWindow(tkinter.Frame):
 
     def messageReceived(self, message) -> None:
         #DEBUG display the message
-        print(message)
+        #print(message)
         #Split up the message into parts on spaces
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
@@ -1079,7 +1070,6 @@ class MainWindow(tkinter.Frame):
             self.awaiting = False
             #Cycle the files so they are up to date
             self.setdownFiles()
-            #self.askForFiles()
         
         #If an action has been successfully performed
         if len(messageParts) > 1 and messageParts[0] == "done":
@@ -1111,7 +1101,6 @@ class MainWindow(tkinter.Frame):
                 self.calibrating = False
                 #Return to main view
                 self.switchToView()
-                #self.askForFiles()
             
             #Time was set successfully
             if messageParts[1] == "timeset":
@@ -1528,7 +1517,6 @@ class MainWindow(tkinter.Frame):
             except:
                 if self.connected and self.serialConnection != None:
                     self.sendMessage("timeget\n")
-
         
     def reattemptNextLine(self, lineNumber, count) -> None:
         '''Attempt to download a line again until timeout reached or line was received'''
