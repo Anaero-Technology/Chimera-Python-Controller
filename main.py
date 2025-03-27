@@ -1002,7 +1002,7 @@ class MainWindow(tkinter.Frame):
 
     def messageReceived(self, message) -> None:
         #DEBUG display the message
-        #print(message)
+        print(message)
         #Split up the message into parts on spaces
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
@@ -1062,9 +1062,7 @@ class MainWindow(tkinter.Frame):
                     lastEventDifference = int(messageParts[3]) / 1000.0
                 except:
                     pass
-                print("Difference:", lastEventDifference)
                 self.lastEvent = time.time() - lastEventDifference
-                print(self.lastEvent)
             
             #No longer waiting for a response
             self.awaiting = False
