@@ -257,9 +257,9 @@ class MainWindow(tkinter.Frame):
         self.timingInternalFrame = tkinter.Frame(self.timingViewFrame)
         self.timingInternalFrame.pack(expand=True)
         #Label to display time open
-        self.openTimeLabel = tkinter.Label(self.timingInternalFrame, text="Open Time: {0}s".format(self.currentOpen), font=self.fonts["medium"])
+        self.openTimeLabel = tkinter.Label(self.timingInternalFrame, text="Open Time: {0}".format(self.formatSeconds(self.currentOpen)), font=self.fonts["medium"])
         self.openTimeLabel.pack(anchor="center", side="left", padx=10, fill="x")
-        self.flushTimeLabel = tkinter.Label(self.timingInternalFrame, text="Flush Time: {0}s".format(self.currentFlush), font=self.fonts["medium"])
+        self.flushTimeLabel = tkinter.Label(self.timingInternalFrame, text="Flush Time: {0}".format(self.formatSeconds(self.currentFlush)), font=self.fonts["medium"])
         self.flushTimeLabel.pack(anchor="center", side="left", padx=10, fill="x")
         self.currentTimeInfoButton = tkinter.Button(self.timingInternalFrame, text="Currently Waiting", font=self.fonts["medium"], command=self.openValveWindow)
         self.currentTimeInfoButton.pack(anchor="center", side="left", padx=10, fill="x")
@@ -931,8 +931,8 @@ class MainWindow(tkinter.Frame):
     
     def updateTimingsDisplay(self) -> None:
         '''Update what is bdeing displayed about the timings'''
-        self.openTimeLabel.configure(text="Open Time: {0}s".format(self.currentOpen))
-        self.flushTimeLabel.configure(text="Flush Time: {0}s".format(self.currentFlush))
+        self.openTimeLabel.configure(text="Open Time: {0}".format(self.formatSeconds(self.currentOpen)))
+        self.flushTimeLabel.configure(text="Flush Time: {0}".format(self.formatSeconds(self.currentFlush)))
         self.openTimeEntry.delete(0, "end")
         self.flushTimeEntry.delete(0, "end")
         self.openTimeEntry.insert(0, str(self.currentOpen))
@@ -2205,7 +2205,7 @@ class MainWindow(tkinter.Frame):
         if seconds < 60 * 60:
             minutes = seconds // 60
             seconds = seconds - (minutes * 60)
-            return "{1}m {2}s".format(minutes, seconds)
+            return "{0}m {1}s".format(minutes, seconds)
         #Seconds minutes and hours
         else:
             hours = seconds // (60 * 60)
