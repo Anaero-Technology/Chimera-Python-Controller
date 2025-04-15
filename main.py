@@ -151,7 +151,7 @@ class MainWindow(tkinter.Frame):
 
         self.calibratingMethane = True
         self.calibrationActionTime = 0
-        self.calibrationTime = 1000
+        self.calibrationTime = 10.0
         self.calibrationReading = True
         self.calibrationFlushing = False
 
@@ -334,9 +334,22 @@ class MainWindow(tkinter.Frame):
         self.sensorOption.configure(font=self.fonts["medium"])
         self.sensorOption.pack(side="top", fill="x", padx=10, pady=5)
 
-        self.calibrationInfoString = "Enter concentration of gas in sample. Connect gas sample to channel 1, press calibrate and then wait for prompt."
-        self.calibrateInfoLabel = tkinter.Label(self.calibrationFrame, text=self.calibrationInfoString, font=self.fonts["medium"])
-        self.calibrateInfoLabel.pack(side="top", fill="x", padx=20, pady=5)
+        self.calibrationInfoOutputFrame = tkinter.Frame(self.calibrationFrame)
+        self.calibrationInfoOutputFrame.pack(side="top", fill="x", expand=True, padx=20, pady=5)
+        self.calibrationInfoOutputFrame.grid_rowconfigure(0, weight=1)
+        self.calibrationInfoOutputFrame.grid_columnconfigure(0, weight=1)
+
+        self.calibrationInfoStrings = ["Enter concentration of gas in sample.\nConnect gas sample to channel 1,\npress calibrate and then wait for prompt.",
+                                       "Flushing sensor to prepare\nfor zero calibration.\n{0} remaining.",
+                                       "Gas test valve open,\npush gas into chamber now.\n{0} remaining before read starts.",
+                                       "Calibrating sensor using\ngas within chamber.\n{0} remaining.",
+                                       "Calibration finished,\nnow flushing chamber.\n{0} remaining."]
+
+        self.calibrationInfoLabels = []
+        for index in range(0, 5):
+            self.calibrationInfoLabels.append(tkinter.Label(self.calibrationInfoOutputFrame, text=self.calibrationInfoStrings[index], font=self.fonts["medium"]))
+            self.calibrationInfoLabels[-1].grid(row=0, column=0, sticky="NESW")
+        self.calibrationInfoLabels[0].tkraise()
 
         self.calibrationPercentageFrame = tkinter.Frame(self.calibrationFrame)
         self.calibrationPercentageFrame.pack(side="top", padx=10, pady=5)
@@ -350,8 +363,8 @@ class MainWindow(tkinter.Frame):
         self.sendCalibrationButton = tkinter.Button(self.calibrationFrame, text="Start Calibration", command=self.startCalibration, font=self.fonts["medium"])
         self.sendCalibrationButton.pack(side="top", pady=5)
 
-        self.calibrationFrame.bind("<Configure>", self.calibrationFrameConfigure)
-        self.after(1000, self.calibrationFrameConfigure, None)
+        #self.calibrationFrame.bind("<Configure>", self.calibrationFrameConfigure)
+        #self.after(1000, self.calibrationFrameConfigure, None)
 
         #Label to act as header for channel service configuration section
         self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
@@ -1322,16 +1335,16 @@ class MainWindow(tkinter.Frame):
         if len(messageParts) > 1 and messageParts[0] == "calibration":
             if messageParts[1] == "starting":
                 self.calibrationActionTime = time.time()
-                self.calibrationInfoString = "Flushing sensor to prepare for zero calibration.\n{0} remaining."
+                self.calibrationInfoLabels[1].tkraise()
             elif messageParts[1] == "opening":
                 self.calibrationActionTime = time.time()
-                self.calibrationInfoLabel.configure(text="Gas test valve open, push gas into chamber now.\n{0} remaining before read starts.")
+                self.calibrationInfoLabels[2].tkraise()
             elif messageParts[1] == "reading":
                 self.calibrationActionTime = time.time()
-                self.calibrationInfoLabel.configure(text="Calibrating sensor using gas within chamber.\n{0} remaining.")
+                self.calibrationInfoLabels[3].tkraise()
             elif messageParts[1] == "finishing":
                 self.calibrationActionTime = time.time()
-                self.calibrationInfoLabel.configure(text="Calibration finished, now flushing chamber.\n{0} remaining.")
+                self.calibrationInfoLabels[4].tkraise()
     
     def reattemptNextLine(self, lineNumber, count) -> None:
         '''Attempt to download a line again until timeout reached or line was received'''
@@ -1422,8 +1435,7 @@ class MainWindow(tkinter.Frame):
             self.displayMessage("Invalid Sensor", "Chosen sensor was not found, please try again")
 
     def endCalibration(self) -> None:
-        self.calibrationInfoString = "Enter concentration of gas in sample. Connect gas sample to channel 1, press calibrate and then wait for prompt."
-        self.calibrateInfoLabel.configure(text=self.calibrationInfoString)
+        self.calibrationInfoLabels[0].tkraise()
         self.calibratePercentageEntry.delete(0, tkinter.END)
     
     def updateCalibrationTiming(self) -> None:
@@ -1432,7 +1444,8 @@ class MainWindow(tkinter.Frame):
         if self.calibrationReading:
             #Calculate remaining time in seconds
             remaining = max(int(self.calibrationTime - (time.time() - self.calibrationActionTime)), 0)
-            self.calibrationInfoLabel.configure(text=self.calibrationInfoString.format(self.formatSeconds(remaining)))
+            for i in range(1, 5):
+                self.calibrationInfoLabels[i].configure(text=self.calibrationInfoStrings[i].format(self.formatSeconds(remaining)))
             self.after(10, self.updateCalibrationTiming)
     
     def updateTimingPressed(self) -> None:
@@ -1967,9 +1980,6 @@ class MainWindow(tkinter.Frame):
         '''Change y scroll position when mouse wheel moved'''
         if self.fileCanvas != None:
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-    
-    def calibrationFrameConfigure(self, _event):
-        self.calibrateInfoLabel.configure(wraplength=self.calibrateInfoLabel.winfo_width() - 40)
 
     def closeWindow(self) -> None:
         #If something is not currently happening
