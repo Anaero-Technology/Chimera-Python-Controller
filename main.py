@@ -151,9 +151,15 @@ class MainWindow(tkinter.Frame):
 
         self.calibratingMethane = True
         self.calibrationActionTime = 0
-        self.calibrationTime = 10.0
+        self.calibrationFlushTime = 30.0
+        self.calibrationReadyTime = 30.0
+        self.calibrationReadingTime = 120.0
+        self.calibrationCurrentTime = 30.0
         self.calibrationReading = True
         self.calibrationFlushing = False
+
+        self.timeFlashState = 0
+        self.timeFlashLimit = 10
 
         self.previousCh4 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.previousCo2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -1180,25 +1186,26 @@ class MainWindow(tkinter.Frame):
                 self.previousCo2[channel] = co2
                 #Add to view percentages
                 self.moveGasBars(channel, ch4, co2)
-                #Iterate through channels
-                for i in range(0, 16):
-                    #Set colour to selected only if this is the current channel
-                    col = self.defaultButtonColour
-                    if i == channel:
-                        col = self.selectedButtonColour
-                    else:
-                        if i != 15:
-                            if not self.currentService[i]:
-                                col = self.darkenedColour
-                    #Update the background of each part
-                    self.percentageViews[i]["frame"].configure(bg=col)
-                    self.percentageViews[i]["label"].configure(bg=col)
-                    self.percentageViews[i]["ch4"].configure(bg=col)
-                    self.percentageViews[i]["co2"].configure(bg=col)
-                    self.percentageViews[i]["ch4Out"].configure(bg=col)
-                    self.percentageViews[i]["co2Out"].configure(bg=col)
-                    self.percentageViews[i]["ch4Text"].configure(bg=col)
-                    self.percentageViews[i]["co2Text"].configure(bg=col)
+                if channel != 15:
+                    #Iterate through channels
+                    for i in range(0, 16):
+                        #Set colour to selected only if this is the current channel
+                        col = self.defaultButtonColour
+                        if i == channel:
+                            col = self.selectedButtonColour
+                        else:
+                            if i != 15:
+                                if not self.currentService[i]:
+                                    col = self.darkenedColour
+                        #Update the background of each part
+                        self.percentageViews[i]["frame"].configure(bg=col)
+                        self.percentageViews[i]["label"].configure(bg=col)
+                        self.percentageViews[i]["ch4"].configure(bg=col)
+                        self.percentageViews[i]["co2"].configure(bg=col)
+                        self.percentageViews[i]["ch4Out"].configure(bg=col)
+                        self.percentageViews[i]["co2Out"].configure(bg=col)
+                        self.percentageViews[i]["ch4Text"].configure(bg=col)
+                        self.percentageViews[i]["co2Text"].configure(bg=col)
                 
                 #If there are enough values for each of the 5 extra points per gas type
                 if len(messageParts) > 15:
@@ -1304,7 +1311,11 @@ class MainWindow(tkinter.Frame):
                 hour = int(timeParts[3])
                 minute = int(timeParts[4])
                 second = int(timeParts[5])
+                difference = self.timeDifference(year, month, day, hour, minute, second)
                 self.currentClockTimeLabel.configure(text="Current: {0}:{1}:{2} {3}/{4}/{5}".format(hour, minute, second, day, month, year))
+                if difference > 3 * 60:
+                    self.timeFlashState = 0
+                    self.highlightTime()
                 if month < 9:
                     month = "0" + str(month)
                 self.currentTimeFileName = "eventLog_{0}{1}.csv".format(year, month)
@@ -1334,17 +1345,37 @@ class MainWindow(tkinter.Frame):
 
         if len(messageParts) > 1 and messageParts[0] == "calibration":
             if messageParts[1] == "starting":
+                self.calibrationCurrentTime = self.calibrationFlushTime
                 self.calibrationActionTime = time.time()
                 self.calibrationInfoLabels[1].tkraise()
             elif messageParts[1] == "opening":
+                self.calibrationCurrentTime = self.calibrationReadyTime
                 self.calibrationActionTime = time.time()
                 self.calibrationInfoLabels[2].tkraise()
             elif messageParts[1] == "reading":
+                self.calibrationCurrentTime = self.calibrationReadingTime
                 self.calibrationActionTime = time.time()
                 self.calibrationInfoLabels[3].tkraise()
             elif messageParts[1] == "finishing":
+                self.calibrationCurrentTime = self.calibrationFlushTime
                 self.calibrationActionTime = time.time()
                 self.calibrationInfoLabels[4].tkraise()
+
+    def timeDifference(self, year : int, month : int, day : int, hour : int, minute : int, second : int) -> int:
+        realTime = datetime.datetime.now().timestamp()
+        deviceTime = datetime.datetime(year, month, day, hour, minute, second).timestamp()
+        return int(abs(realTime - deviceTime))
+    
+    def highlightTime(self):
+        if self.timeFlashState % 2 == 0:
+            self.timeButton.configure(bg=self.defaultButtonColour)
+        else:
+            self.timeButton.configure(bg=self.redTextColour)
+        self.timeFlashState = self.timeFlashState + 1
+        if self.timeFlashState < self.timeFlashLimit:
+            self.after(200, self.highlightTime)
+        else:
+            self.timeButton.configure(bg=self.defaultButtonColour)
     
     def reattemptNextLine(self, lineNumber, count) -> None:
         '''Attempt to download a line again until timeout reached or line was received'''
@@ -1443,7 +1474,7 @@ class MainWindow(tkinter.Frame):
         #If in reading mode
         if self.calibrationReading:
             #Calculate remaining time in seconds
-            remaining = max(int(self.calibrationTime - (time.time() - self.calibrationActionTime)), 0)
+            remaining = max(int(self.calibrationCurrentTime - (time.time() - self.calibrationActionTime)), 0)
             for i in range(1, 5):
                 self.calibrationInfoLabels[i].configure(text=self.calibrationInfoStrings[i].format(self.formatSeconds(remaining)))
             self.after(10, self.updateCalibrationTiming)
