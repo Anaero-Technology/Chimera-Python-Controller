@@ -8,7 +8,6 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 from serial.tools import list_ports
 from threading import Thread
 import datetime
-import numpy
 import math
 import os, pathlib, sys
 import notifypy
