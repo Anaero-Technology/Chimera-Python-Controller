@@ -281,6 +281,8 @@ class MainWindow(tkinter.Frame):
         #Add files button
         self.fileViewButton = tkinter.Button(self.viewOptionsButtonsFrame, text="View Files", image=self.fileIcon, compound="top", command=self.viewFilesPressed, font=self.fonts["medium"])
         self.fileViewButton.grid(row=0, column=1)
+        self.percentageDebugLabel = tkinter.Label(self.viewFrame, text="Current sensor values:", font=self.fonts["medium"])
+        self.percentageDebugLabel.grid(row=8, column=0, columnspan=8)
 
         """Graph Window""" #Window to display graphs of the peak values from the sensor
         self.graphWindow = tkinter.Toplevel(self)
@@ -1359,6 +1361,14 @@ class MainWindow(tkinter.Frame):
                 self.calibrationCurrentTime = self.calibrationFlushTime
                 self.calibrationActionTime = time.time()
                 self.calibrationInfoLabels[4].tkraise()
+        
+        if len(messageParts) > 5 and messageParts[0] == "Sensor" and messageParts[1] == "Percentages:":
+            try:
+                ch4Value = float(messageParts[3])
+                co2Value = float(messageParts[5])
+                self.percentageDebugLabel.configure(text="Current sensor values: CH4:{0} CO2:{1}".format(ch4Value, co2Value))
+            except:
+                pass
 
     def timeDifference(self, year : int, month : int, day : int, hour : int, minute : int, second : int) -> int:
         realTime = datetime.datetime.now().timestamp()
