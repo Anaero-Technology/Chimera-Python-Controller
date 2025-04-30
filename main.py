@@ -150,9 +150,9 @@ class MainWindow(tkinter.Frame):
 
         self.calibratingMethane = True
         self.calibrationActionTime = 0
-        self.calibrationFlushTime = 30.0
-        self.calibrationReadyTime = 30.0
-        self.calibrationReadingTime = 120.0
+        self.calibrationFlushTime = 20.0
+        self.calibrationReadyTime = 120.0
+        self.calibrationReadingTime = 10.0
         self.calibrationCurrentTime = 30.0
         self.calibrationReading = True
         self.calibrationFlushing = False
@@ -369,6 +369,9 @@ class MainWindow(tkinter.Frame):
 
         self.sendCalibrationButton = tkinter.Button(self.calibrationFrame, text="Start Calibration", command=self.startCalibration, font=self.fonts["medium"])
         self.sendCalibrationButton.pack(side="top", pady=5)
+
+        self.currentSensorReadingInfoLabel = tkinter.Label(self.calibrationFrame, text="Sensor Value: --", font=self.fonts["medium"])
+        self.currentSensorReadingInfoLabel.pack(side="top", anchor="center", expand=True, padx=10, pady=25)
 
         #self.calibrationFrame.bind("<Configure>", self.calibrationFrameConfigure)
         #self.after(1000, self.calibrationFrameConfigure, None)
@@ -1345,6 +1348,8 @@ class MainWindow(tkinter.Frame):
             self.selectedSensor.set("None")
 
         if len(messageParts) > 1 and messageParts[0] == "calibration":
+            if messageParts[1] == "info" and len(messageParts) > 2:
+                self.currentSensorReadingInfoLabel.configure(text="Sensor Value: {0}".format(messageParts[2]))
             if messageParts[1] == "starting":
                 self.calibrationCurrentTime = self.calibrationFlushTime
                 self.calibrationActionTime = time.time()
@@ -1361,6 +1366,7 @@ class MainWindow(tkinter.Frame):
                 self.calibrationCurrentTime = self.calibrationFlushTime
                 self.calibrationActionTime = time.time()
                 self.calibrationInfoLabels[4].tkraise()
+                self.currentSensorReadingInfoLabel.configure(text="Sensor Value: --")
         
         if len(messageParts) > 5 and messageParts[0] == "Sensor" and messageParts[1] == "Percentages:":
             try:
