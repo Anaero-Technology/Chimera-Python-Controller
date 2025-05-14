@@ -414,9 +414,9 @@ class MainWindow(tkinter.Frame):
         self.timingFlushInputFrame = tkinter.Frame(self.timingsFrame)
         self.timingFlushInputFrame.pack(pady=3)
         #Label and entry for open and flush time
-        self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time:", font=self.fonts["medium"])
+        self.openTimingLabel = tkinter.Label(self.timingOpenInputFrame, text="Open Time (seconds):", font=self.fonts["medium"])
         self.openTimeEntry = tkinter.Entry(self.timingOpenInputFrame, font=self.fonts["medium"], width=5, justify="center")
-        self.flushTimeingLabel = tkinter.Label(self.timingFlushInputFrame, text="Flush Time:", font=self.fonts["medium"])
+        self.flushTimeingLabel = tkinter.Label(self.timingFlushInputFrame, text="Flush Time (seconds):", font=self.fonts["medium"])
         self.flushTimeEntry = tkinter.Entry(self.timingFlushInputFrame, font=self.fonts["medium"], width=5, justify="center")
         self.openTimingLabel.pack(side="left", anchor="center", fill="x", pady=3)
         self.openTimeEntry.pack(side="left", anchor="center", fill="x", pady=3)
@@ -819,7 +819,7 @@ class MainWindow(tkinter.Frame):
             self.displayMessage("Not Connected", "You must be connected to a port to download files.")
     
     def updateTimingsDisplay(self) -> None:
-        '''Update what is bdeing displayed about the timings'''
+        '''Update what is being displayed about the timings'''
         self.openTimeLabel.configure(text="Open Time: {0}".format(self.formatSeconds(self.currentOpen)))
         self.flushTimeLabel.configure(text="Flush Time: {0}".format(self.formatSeconds(self.currentFlush)))
         self.openTimeEntry.delete(0, "end")
