@@ -1179,11 +1179,11 @@ class MainWindow(tkinter.Frame):
         
         #If there is a datapoint to be stored for debugging peaks
         if len(messageParts) > 5 and messageParts[0] == "dataPoint":
-            '''datapoint valveNumber CH4Maximum CO2Maximum CH4Percent CO2Percent CH4Peak1 CH4Peak2 CH4Peak3 CH4Peak4 CH4Peak5 CO2Peak1 CO2Peak2 CO2Peak3 CO2Peak4 CO2Peak5'''
+            '''datapoint valveNumber CH4Percent CO2Percent CH4Peak1 CH4Peak2 CH4Peak3 CH4Peak4 CH4Peak5 CO2Peak1 CO2Peak2 CO2Peak3 CO2Peak4 CO2Peak5'''
             try:
                 #Convert each value into an integer
-                ch4 = int(float(messageParts[4]))
-                co2 = int(float(messageParts[5]))
+                ch4 = int(float(messageParts[2]))
+                co2 = int(float(messageParts[3]))
                 channel = int(messageParts[1])
                 #Store to be used later if needed
                 self.previousCh4[channel] = ch4
