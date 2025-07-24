@@ -208,51 +208,18 @@ class MainWindow(tkinter.Frame):
             #The frame to hold everything
             display = {"frame" : tkinter.Frame(self.viewFrame, highlightbackground="black", highlightthickness=1)}
             display["frame"].grid_rowconfigure(0, weight=1)
-            display["frame"].grid_rowconfigure(1, weight=1)
-            display["frame"].grid_rowconfigure(2, weight=10)
-            display["frame"].grid_rowconfigure(3, weight=1)
+            display["frame"].grid_rowconfigure(1, weight=10)
             display["frame"].grid_columnconfigure(0, weight=1)
-            display["frame"].grid_columnconfigure(1, weight=1)
             #Title text label
             reactorName = "Reactor {0}".format(i + 1)
             if i == 15:
                 reactorName = "Flush"
             display["label"] = tkinter.Label(display["frame"], text=reactorName, font=self.fonts["small-bold"])
-            display["label"].grid(row=0, column=0, columnspan=2, sticky="NESW")
+            display["label"].grid(row=0, column=0, sticky="NESW")
 
-            #Methane text percentage and link to graph
-            display["ch4Text"] = tkinter.Label(display["frame"], text="75%")
-            display["ch4Text"].grid(row=1, column=0, padx=1, sticky="NESW")
-            display["ch4Text"].bind("<Button-1>", lambda event,x=i:self.methanePointsPressed(x))
-            #Frame to hold bar
-            display["ch4Out"] = tkinter.Frame(display["frame"])
-            display["ch4Out"].grid(row=2, column=0, padx=1, sticky="NESW")
-            #Methane bar
-            display["ch4Bar"] = tkinter.Frame(display["ch4Out"])
-            display["ch4Bar"].place(rely=0.25, relheight=0.75, relwidth=1.0)
-            #Button within bar for apprearance
-            display["ch4ViewButton"] = tkinter.Button(display["ch4Bar"], command=lambda x=i:self.methanePointsPressed(x), bg=self.methaneColour)
-            display["ch4ViewButton"].pack(expand=True, fill="both")
-            #Label text for methane
-            display["ch4"] = tkinter.Label(display["frame"], text="CH4")
-            display["ch4"].grid(row=3, column=0, padx=1, sticky="NESW")
+            display["data"] = tkinter.Label(display["frame"], text="", font=self.fonts["small"], justify="center")
+            display["data"].grid(row=1, column=0, sticky="NESW")
 
-            #Carbon dioxide text percentage and link to graph
-            display["co2Text"] = tkinter.Label(display["frame"], text="25%")
-            display["co2Text"].grid(row=1, column=1, padx=1, sticky="NESW")
-            display["co2Text"].bind("<Button-1>", lambda event,x=i:self.carbonPointsPressed(x))
-            #Frame to hold bar
-            display["co2Out"] = tkinter.Frame(display["frame"])
-            display["co2Out"].grid(row=2, column=1, padx=1, sticky="NESW")
-            #Carbon dioxide bar
-            display["co2Bar"] = tkinter.Frame(display["co2Out"])
-            display["co2Bar"].place(rely=0.75, relheight=0.25, relwidth=1.0)
-            #Button within bar for appearance
-            display["co2ViewButton"] = tkinter.Button(display["co2Bar"], command=lambda x=i:self.carbonPointsPressed(x), bg=self.carbonColour)
-            display["co2ViewButton"].pack(expand=True, fill="both")
-            #Label text for carbon dioxide
-            display["co2"] = tkinter.Label(display["frame"], text="CO2")
-            display["co2"].grid(row=3, column=1, padx=1, sticky="NESW")
             #Add to list of objects
             self.percentageViews.append(display)
             #Find correct position and place on screen
@@ -631,21 +598,6 @@ class MainWindow(tkinter.Frame):
         notification.icon = self.pathTo("images/icon.png")
         notification.send()
 
-    def moveGasBars(self, channel : int, ch4 : int, co2: int) -> None:
-        """Change the position of the bars and gas percentage labels for the given channel"""
-        #If it is a valid channel index
-        if channel > -1 and channel < len(self.percentageViews):
-            #Calculate bar height and position (as percentage of parent) for ch4 and co2
-            ch4Height = ch4 / 100.0
-            ch4YPos = 1.0 - ch4Height
-            co2Height = co2 / 100.0
-            co2YPos = 1.0 - co2Height
-            #Move the bars and change the percentages
-            self.percentageViews[channel]["ch4Bar"].place(rely=ch4YPos, relheight=ch4Height, relwidth=1.0)
-            self.percentageViews[channel]["co2Bar"].place(rely=co2YPos, relheight=co2Height, relwidth=1.0)
-            self.percentageViews[channel]["ch4Text"].configure(text="{0}%".format(ch4))
-            self.percentageViews[channel]["co2Text"].configure(text="{0}%".format(co2))
-
     def methanePointsPressed(self, channel : int) -> None:
         """Open the graph for methane for the given channel"""
         self.openGraph(channel, True)
@@ -968,12 +920,7 @@ class MainWindow(tkinter.Frame):
                     #Update the background of each part
                     self.percentageViews[i]["frame"].configure(bg=col)
                     self.percentageViews[i]["label"].configure(bg=col)
-                    self.percentageViews[i]["ch4"].configure(bg=col)
-                    self.percentageViews[i]["co2"].configure(bg=col)
-                    self.percentageViews[i]["ch4Out"].configure(bg=col)
-                    self.percentageViews[i]["co2Out"].configure(bg=col)
-                    self.percentageViews[i]["ch4Text"].configure(bg=col)
-                    self.percentageViews[i]["co2Text"].configure(bg=col)
+                    self.percentageViews[i]["data"].configure(bg=col)
 
             if messageParts[1] == "true":
                 #Logging state
@@ -1233,18 +1180,25 @@ class MainWindow(tkinter.Frame):
                 pass
         
         #If there is a datapoint to be stored for debugging peaks
-        if len(messageParts) > 5 and messageParts[0] == "dataPoint":
-            '''datapoint valveNumber CH4Maximum CO2Maximum CH4Percent CO2Percent CH4Peak1 CH4Peak2 CH4Peak3 CH4Peak4 CH4Peak5 CO2Peak1 CO2Peak2 CO2Peak3 CO2Peak4 CO2Peak5'''
+        if len(messageParts) > 3 and messageParts[0] == "datapoint":
+            '''datapoint date time channel [sensorAddress sensorType maxValue peak peak peak peak peak]'''
             try:
-                #Convert each value into an integer
-                ch4 = int(float(messageParts[2]))
-                co2 = int(float(messageParts[3]))
-                channel = int(messageParts[1])
+                data = ""
+                channel = int(messageParts[3])
+                for index in range(4, len(messageParts), 8):
+                    print(index)
+                    try:
+                        sensorType = messageParts[index + 1]
+                        maxValue = messageParts[index + 2]
+                        data = data + "{0}:{1}%\n".format(sensorType, maxValue)
+                        print(sensorType)
+                    except Exception:
+                        print(traceback.format_exc())
                 #Store to be used later if needed
-                self.previousCh4[channel] = ch4
-                self.previousCo2[channel] = co2
+                #self.previousCh4[channel] = ch4
+                #self.previousCo2[channel] = co2
                 #Add to view percentages
-                self.moveGasBars(channel, ch4, co2)
+                self.percentageViews[channel]["data"].configure(text=data)
                 if channel != 15:
                     #Iterate through channels
                     for i in range(0, 16):
@@ -1259,15 +1213,10 @@ class MainWindow(tkinter.Frame):
                         #Update the background of each part
                         self.percentageViews[i]["frame"].configure(bg=col)
                         self.percentageViews[i]["label"].configure(bg=col)
-                        self.percentageViews[i]["ch4"].configure(bg=col)
-                        self.percentageViews[i]["co2"].configure(bg=col)
-                        self.percentageViews[i]["ch4Out"].configure(bg=col)
-                        self.percentageViews[i]["co2Out"].configure(bg=col)
-                        self.percentageViews[i]["ch4Text"].configure(bg=col)
-                        self.percentageViews[i]["co2Text"].configure(bg=col)
+                        self.percentageViews[i]["data"].configure(bg=col)
                 
                 #If there are enough values for each of the 5 extra points per gas type
-                if len(messageParts) > 15:
+                '''if len(messageParts) > 15:
                     numberItems = 5
                     self.ch4DebugData[channel] = []
                     self.co2DebugData[channel] = []
@@ -1279,9 +1228,9 @@ class MainWindow(tkinter.Frame):
                             self.ch4DebugData[channel].append(int(float(messageParts[i])))
                     for i in range(co2Start, co2Start + numberItems):
                         if len(messageParts) > i:
-                            self.co2DebugData[channel].append(int(float(messageParts[i])))
-            except Exception as e:
-                print(e)
+                            self.co2DebugData[channel].append(int(float(messageParts[i])))'''
+            except Exception:
+                print(traceback.format_exc())
         
         #If this is a message about the current timing of the valves
         if len(messageParts) > 2 and messageParts[0] == "timing":
@@ -1334,7 +1283,6 @@ class MainWindow(tkinter.Frame):
                     self.previousCh4[channel] = ch4
                     self.previousCo2[channel] = co2
                     #Add to view percentages
-                    self.moveGasBars(channel, ch4, co2)
 
             except:
                 print("Invalid past data, ignored safely")
@@ -1674,14 +1622,12 @@ class MainWindow(tkinter.Frame):
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.defaultButtonColour)
                 self.percentageViews[index]["frame"].configure(bg=self.defaultButtonColour)
-                self.moveGasBars(index, self.previousCh4[index], self.previousCo2[index])
             else:
                 #Set the button to disabled and set the colours of the view window to darkened
                 self.enabledButtons[index].configure(text="Disabled", bg=self.redTextColour)
                 for child in self.percentageViews[index]["frame"].winfo_children():
                     child.configure(bg=self.darkenedColour)
                 self.percentageViews[index]["frame"].configure(bg=self.darkenedColour)
-                self.moveGasBars(index, 0, 0)
 
     def toggleServicePressed(self, channel) -> None:
         '''When a service toggle button is pressed'''
