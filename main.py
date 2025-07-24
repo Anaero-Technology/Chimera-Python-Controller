@@ -13,6 +13,7 @@ import os, pathlib, sys
 import notifypy
 from PIL import Image, ImageTk
 import time
+import traceback
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -30,7 +31,7 @@ class MainWindow(tkinter.Frame):
         self.redTextColour = "#FF3333"
 
         #Fonts
-        self.fonts = {"huge":("", 22), "large":("", 18), "medium":("", 14), "small":("",10), "small-bold":("", 10, "bold")}
+        self.fonts = {"huge":("", 22), "large":("", 18), "medium":("", 14), "medium-bold":("", 14, "bold"), "small":("", 10), "small-bold":("", 10, "bold")}
 
         #Icons loaded from files
         self.gearIcon = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
@@ -127,7 +128,7 @@ class MainWindow(tkinter.Frame):
         #Object to hold serial connection to port
         self.serialConnection = None
         #Whether or not the device is in calibration mode
-        self.calibrating = False
+        self.logging = False
 
         #List of available port names
         self.portLabels = []
@@ -165,6 +166,8 @@ class MainWindow(tkinter.Frame):
 
         self.gasTypes = {}
         self.gasNames = {"CH4":"Methane", "CO2":"Carbon Dioxide"}
+
+        self.recirculateInfo = {"enabled":False, "time":[0, 0], "last":[2000, 1, 1], "days":1}
 
         """Connection Frame"""
         self.connectFrame = tkinter.Frame(self)
@@ -276,7 +279,7 @@ class MainWindow(tkinter.Frame):
         self.viewOptionsButtonsFrame.grid_columnconfigure(0, weight=1)
         self.viewOptionsButtonsFrame.grid_columnconfigure(1, weight=1)
         #Add configure button
-        self.configureButton = tkinter.Button(self.viewOptionsButtonsFrame, text="Configure Chimera", image=self.gearIcon, compound="top", command=self.configurePressed, font=self.fonts["medium"])
+        self.configureButton = tkinter.Button(self.viewOptionsButtonsFrame, text="Stop Logging", command=self.endLoggingPressed, font=self.fonts["medium"])
         self.configureButton.grid(row=0, column=0)
         #Add files button
         self.fileViewButton = tkinter.Button(self.viewOptionsButtonsFrame, text="View Files", image=self.fileIcon, compound="top", command=self.viewFilesPressed, font=self.fonts["medium"])
@@ -319,16 +322,16 @@ class MainWindow(tkinter.Frame):
         #Widthdraw window
         self.closeValveWindow()
 
-        """Configure Frame"""
-        self.configureFrame = tkinter.Frame(self)
+        """Setup Frame"""
+        self.setupFrame = tkinter.Frame(self)
         #Calculate default colour as matplotlib colour, convert to 0-1 range by dividing by 65535 (16 bit maximum)
         #Grid setup
-        for row in range(0, 9):
-            self.configureFrame.grid_rowconfigure(row, weight=1)
+        for row in range(0, 12):
+            self.setupFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 4):
-            self.configureFrame.grid_columnconfigure(col, weight=1)
+            self.setupFrame.grid_columnconfigure(col, weight=1)
         
-        self.calibrationFrame = tkinter.Frame(self.configureFrame)
+        self.calibrationFrame = tkinter.Frame(self.setupFrame)
         self.calibrationFrame.grid(row=0, column=0, columnspan=2, rowspan=9, sticky="NEW")
 
         self.calibrationTitleLabel = tkinter.Label(self.calibrationFrame, text="Calibrate Sensors", font=self.fonts["large"])
@@ -373,14 +376,12 @@ class MainWindow(tkinter.Frame):
         self.currentSensorReadingInfoLabel = tkinter.Label(self.calibrationFrame, text="Sensor Value: --", font=self.fonts["medium"])
         self.currentSensorReadingInfoLabel.pack(side="top", anchor="center", expand=True, padx=10, pady=25)
 
-        #self.calibrationFrame.bind("<Configure>", self.calibrationFrameConfigure)
-        #self.after(1000, self.calibrationFrameConfigure, None)
 
         #Label to act as header for channel service configuration section
-        self.enabledValvesLabel = tkinter.Label(self.configureFrame, text="Channels In Service", font=self.fonts["large"])
+        self.enabledValvesLabel = tkinter.Label(self.setupFrame, text="Channels In Service", font=self.fonts["large"])
         self.enabledValvesLabel.grid(row=0, column=2, columnspan=2, sticky="NESW")
         #Frame to hold buttons and labels for in service
-        self.enabledValvesFrame = tkinter.Frame(self.configureFrame)
+        self.enabledValvesFrame = tkinter.Frame(self.setupFrame)
         self.enabledValvesFrame.grid(row=1, column=2, columnspan=2, rowspan=2, sticky="NESW")
         for row in range(0, 6):
             self.enabledValvesFrame.grid_rowconfigure(row, weight=1)
@@ -403,7 +404,7 @@ class MainWindow(tkinter.Frame):
                 currentRow = currentRow + 2
             self.enabledButtons.append(button)
         #Frame to hold all the timing information
-        self.timingsFrame = tkinter.Frame(self.configureFrame)
+        self.timingsFrame = tkinter.Frame(self.setupFrame)
         self.timingsFrame.grid(row=4, column=2, columnspan=2, rowspan=4,)
         #Heading text
         self.timingsLabel = tkinter.Label(self.timingsFrame, text="Timings", font=self.fonts["large"])
@@ -426,14 +427,62 @@ class MainWindow(tkinter.Frame):
         self.updateTimingsButton = tkinter.Button(self.timingsFrame, text="Update Timings", command=self.updateTimingPressed, font=self.fonts["medium"])
         self.updateTimingsButton.pack(pady=3)
         #Label to display the current internal clock time of the device
-        self.currentClockTimeLabel = tkinter.Label(self.configureFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.fonts["medium"])
+        self.currentClockTimeLabel = tkinter.Label(self.setupFrame, text="Current: 00:00:00 01/01/1970", relief="sunken", font=self.fonts["medium"])
         self.currentClockTimeLabel.grid(row=8, column=2, pady=15)
         #Button to request that the time be sent from the computer to the device
-        self.timeButton = tkinter.Button(self.configureFrame, text="Update Current Time", command=self.setTimePressed, font=self.fonts["medium"])
+        self.timeButton = tkinter.Button(self.setupFrame, text="Update Current Time", command=self.setTimePressed, font=self.fonts["medium"])
         self.timeButton.grid(row=8, column=3, pady=15)
-        #Button to close the configuration screen and return to the main window
-        self.endConfigureButton = tkinter.Button(self.configureFrame, text="Close Configuration", font=self.fonts["large"], command=self.endConfigurePressed)
-        self.endConfigureButton.grid(row=9, column=2, columnspan=2, rowspan=2, pady=15)
+
+        self.recirculateControlFrame = tkinter.Frame(self.setupFrame)
+        self.recirculateControlFrame.grid(row=9, column=0, rowspan=2, columnspan=4, sticky="NESW")
+
+        self.recirculateControlFrame.grid_rowconfigure(0, weight=1)
+        self.recirculateControlFrame.grid_rowconfigure(1, weight=1)
+        self.recirculateControlFrame.grid_columnconfigure(0, weight=1)
+        self.recirculateControlFrame.grid_columnconfigure(1, weight=1)
+        self.recirculateControlFrame.grid_columnconfigure(2, weight=1)
+
+        #Label to act as header for recirculation settings section
+        self.recirculationHeader = tkinter.Label(self.recirculateControlFrame, text="Recirculation Settings", font=self.fonts["large"])
+        self.recirculationHeader.grid(row=0, column=0, columnspan=3, sticky="EW")
+
+        self.recirculateEnableFrame = tkinter.Frame(self.recirculateControlFrame)
+        self.recirculateEnableFrame.grid(row=1, column=0)
+        self.recirculateEnableHeader = tkinter.Label(self.recirculateEnableFrame, text="State", font=self.fonts["medium-bold"])
+        self.recirculateEnableHeader.pack(expand=True)
+        self.recirculateEnableButton = tkinter.Button(self.recirculateEnableFrame, text="Disabled", fg=self.redTextColour, command=self.toggleRecirculateEnabled, font=self.fonts["medium"])
+        self.recirculateEnableButton.pack(expand=True)
+
+        self.recirculateTimeFrame = tkinter.Frame(self.recirculateControlFrame)
+        self.recirculateTimeFrame.grid(row=1, column=1)
+        self.recirculateTimeHeader = tkinter.Label(self.recirculateTimeFrame, text="Time", font=self.fonts["medium-bold"])
+        self.recirculateTimeHeader.pack(expand=True)
+        self.recirculateTimeEntryFrame = tkinter.Frame(self.recirculateTimeFrame)
+        self.recirculateTimeEntryFrame.pack(expand=True)
+        self.recirculateHourVariable = tkinter.StringVar(value="0")
+        self.recirculateHourEntry = tkinter.Entry(self.recirculateTimeEntryFrame, font=self.fonts["medium"], width=3, textvariable=self.recirculateHourVariable, justify="center")
+        self.recirculateTimeColonLabel = tkinter.Label(self.recirculateTimeEntryFrame, text=":", font=self.fonts["medium"])
+        self.recirculateMinuteVariable = tkinter.StringVar(value="0")
+        self.recirculateMinuteEntry = tkinter.Entry(self.recirculateTimeEntryFrame, font=self.fonts["medium"], width=3, textvariable=self.recirculateMinuteVariable, justify="center")
+        self.recirculateHourEntry.pack(side="left", expand=True)
+        self.recirculateTimeColonLabel.pack(side="left")
+        self.recirculateMinuteEntry.pack(side="left", expand=True)
+        self.recirculateTimeButton = tkinter.Button(self.recirculateTimeFrame, text="Update", command=self.updateRecirculateTimePressed, font=self.fonts["medium"])
+        self.recirculateTimeButton.pack(expand=True)
+
+        self.recirculateDaysFrame = tkinter.Frame(self.recirculateControlFrame)
+        self.recirculateDaysFrame.grid(row=1, column=2)
+        self.recirculateDaysHeader = tkinter.Label(self.recirculateDaysFrame, text="Days", font=self.fonts["medium-bold"])
+        self.recirculateDaysHeader.pack(expand=True)
+        self.recirculateDaysVariable = tkinter.StringVar(value="1")
+        self.recirculateDaysEntry = tkinter.Entry(self.recirculateDaysFrame, font=self.fonts["medium"], width=4, textvariable=self.recirculateDaysVariable, justify="center")
+        self.recirculateDaysEntry.pack(expand=True)
+        self.recirculateDaysButton = tkinter.Button(self.recirculateDaysFrame, text="Update", command=self.updateRecirculateDaysPressed, font=self.fonts["medium"])
+        self.recirculateDaysButton.pack(expand=True)
+
+        #Button to start the device logging and switch to the logging screen
+        self.endConfigureButton = tkinter.Button(self.setupFrame, text="Start Logging", font=self.fonts["large"], command=self.startLoggingPressed)
+        self.endConfigureButton.grid(row=11, column=1, columnspan=2, pady=15)
 
         """Files Frame"""
         self.filesFrame = tkinter.Frame(self)
@@ -534,8 +583,8 @@ class MainWindow(tkinter.Frame):
 
         """Add main frames to interface"""
         self.filesFrame.grid(row=0, column=0, sticky="NESW")
-        self.configureFrame.grid(row=0, column=0, sticky="NESW")
         self.viewFrame.grid(row=0, column=0, sticky="NESW")
+        self.setupFrame.grid(row=0, column=0, sticky="NESW")
         self.connectFrame.grid(row=0, column=0, sticky="NESW")
 
         #Perform a first time scan
@@ -564,9 +613,9 @@ class MainWindow(tkinter.Frame):
         if window == 0:
             self.connectFrame.tkraise()
         if window == 1:
-            self.viewFrame.tkraise()
+            self.setupFrame.tkraise()
         if window == 2:
-            self.configureFrame.tkraise()
+            self.viewFrame.tkraise()
         if window == 3:
             self.filesFrame.tkraise()
         #Removes focus from any widget
@@ -718,21 +767,19 @@ class MainWindow(tkinter.Frame):
             #Scan again shortly
             self.after(150, self.performScan)
 
-    def configurePressed(self) -> None:
+    def endLoggingPressed(self) -> None:
         '''Enter configure mode and send messages to gas sensor accordingly'''
         if self.connected and not self.awaiting:
-            if not self.calibrating:
+            if self.logging:
                 #Requests for information so it is as up to date as possible
-                self.sendMessage("timeget\n")
-                self.sendMessage("timingget\n")
-                self.sendMessage("startcal\n")
+                self.sendMessage("stoplogging\n")
                 self.awaiting = True
                 self.calibrationUpdated = False
     
-    def endConfigurePressed(self) -> None:
+    def startLoggingPressed(self) -> None:
         '''Return to main view from configure screen'''
         if self.connected and not self.awaiting:
-            self.sendMessage("endcal\n")
+            self.sendMessage("startlogging\n")
             self.awaiting = True
     
     def viewFilesPressed(self) -> None:
@@ -746,9 +793,9 @@ class MainWindow(tkinter.Frame):
     def setTimePressed(self) -> None:
         '''If in calibration mode - send the time from the computer to the gas sensor to set the real time clock'''
         if self.connected and not self.awaiting:
-            if self.calibrating:
+            if not self.logging:
                 time = datetime.datetime.now()
-                self.sendMessage("timeset {0},{1},{2},{3},{4},{5}\n".format(time.year, time.month, time.day, time.hour, time.minute, time.second))
+                self.sendMessage("timeset {0} {1} {2} {3} {4} {5}\n".format(time.year, time.month, time.day, time.hour, time.minute, time.second))
                 self.awaiting = True
 
 
@@ -893,7 +940,7 @@ class MainWindow(tkinter.Frame):
         #DEBUG display the message
         print(message)
         #Split up the message into parts on spaces
-        messageParts = message.split(" ")
+        messageParts = message.replace("\r", "").split(" ")
         #If this is the information about the state of the esp32
         if len(messageParts) > 1 and messageParts[0] == "info":
 
@@ -902,10 +949,11 @@ class MainWindow(tkinter.Frame):
                 #No longer waiting
                 self.awaitingCommunication = False
                 #Send request for past data
-                self.sendMessage("getpast\n")
+                self.sendMessage("timeget\n")
                 self.sendMessage("timingget\n")
                 self.sendMessage("serviceget\n")
-                self.sendMessage("sensorsget\n")
+                self.sendMessage("sensorget\n")
+                self.sendMessage("recirculateinfo\n")
                 self.parent.title("Chimera Client - {0}".format(self.connectedPort))
                 #Display connected message
                 self.displayMessage("Connected successfully", "Now viewing device information")
@@ -928,9 +976,9 @@ class MainWindow(tkinter.Frame):
                     self.percentageViews[i]["co2Text"].configure(bg=col)
 
             if messageParts[1] == "true":
-                #Calibrating state
-                self.calibrating = True
-                self.switchToConfiguring()
+                #Logging state
+                self.logging = True
+                self.switchToView()
             else:
                 self.changeMainFrame(1)
 
@@ -978,16 +1026,16 @@ class MainWindow(tkinter.Frame):
                 self.askForFiles()
             
             #Finished entering calibration mode
-            if messageParts[1] == "startcal":
-                self.calibrating = True
+            if messageParts[1] == "startlogging":
+                self.logging = True
                 #Open calibration interface
-                self.switchToConfiguring()
+                self.switchToView()
             
             #Finished exiting calibration mode
-            if messageParts[1] == "endcal":
-                self.calibrating = False
+            if messageParts[1] == "stoplogging":
+                self.logging = False
                 #Return to main view
-                self.switchToView()
+                self.switchToSetup()
             
             #Time was set successfully
             if messageParts[1] == "timeset":
@@ -1009,6 +1057,10 @@ class MainWindow(tkinter.Frame):
                 self.endCalibration()
                 self.displayMessage("Calibration Complete", "Calibration completed successfully")
                 self.awaiting = False
+            
+            if messageParts[1] in ["recirculateenable", "recirculatedisable", "recirculatesetdays", "recirculatesettime"]:
+                self.sendMessage("recirculateinfo\n")
+                self.displayMessage("Recirculation Settings Updated", "Value changed successfully")
         
         #If an action failed with an error message
         if len(messageParts) > 2 and messageParts[0] == "failed":
@@ -1022,44 +1074,47 @@ class MainWindow(tkinter.Frame):
                     self.displayMessage("File Not Found", "Delete action could not be completed.")
             
             if messageParts[1] == "timeset":
-                if messageParts[2] == "notcalibrating":
-                    self.calibrating = True
+                if messageParts[2] == "logging":
+                    self.logging = True
                     self.switchToView()
             
-            if messageParts[1] == "startcal":
-                if messageParts[2] == "calibrating":
-                    self.calibrating = True
+            if messageParts[1] == "startlogging":
+                if messageParts[2] == "alreadylogging":
+                    self.logging = True
                     self.switchToConfiguring()
             
-            if messageParts[1] == "endcal":
-                if messageParts[2] == "notcalibrating":
-                    self.calibrating = False
+            if messageParts[1] == "stoplogging":
+                if messageParts[2] == "notlogging":
+                    self.logging = False
                     self.switchToView()
             
             if messageParts[1] == "timingset":
-                if messageParts[2] == "noopen":
-                    self.displayMessage("Could Not Set Timing", "No open time value was found, please try again.")
-                if messageParts[2] == "noflush":
-                    self.displayMessage("Could Not Set Timing", "No flush time value was found, please try again.")
-                if messageParts[2] == "notcalibrationg":
-                    self.calibrating = False
+                if messageParts[2] == "novalue":
+                    self.displayMessage("Could Not Set Timing", "Value was mising, please try again.")
+                if messageParts[2] == "nochange":
+                    self.displayMessage("Could Not Set Timing", "Values were the same.")
+                if messageParts[2] == "logging":
+                    self.logging = True
                     self.switchToView()
             
             if messageParts[1] == "timingget":
-                if messageParts[2] == "notcalibrating":
-                    self.calibrating = False
+                if messageParts[2] == "logging":
+                    self.logging = True
                     self.switchToView()    
             
             if messageParts[1] == "serviceset":
-                if messageParts[2] == "notcalibrating":
-                    self.calibrating = False
+                if messageParts[2] == "logging":
+                    self.logging = True
                     self.switchToView()
             
-            if messageParts[1] == "calibration":
+            if messageParts[1] == "calibrate":
                 if messageParts[2] == "invalidpercent":
                     self.displayMessage("Invalid Percentage", "Percentage value was invalid, please try again")
                 elif messageParts[2] == "invalidsensor":
                     self.displayMessage("Invalid Sensor", "The sensor could not be found, please try again")
+                if messageParts[2] == "logging":
+                    self.logging = True
+                    self.switchToView()
             
             #No longer waiting for a response
             self.awaiting = False
@@ -1182,8 +1237,8 @@ class MainWindow(tkinter.Frame):
             '''datapoint valveNumber CH4Maximum CO2Maximum CH4Percent CO2Percent CH4Peak1 CH4Peak2 CH4Peak3 CH4Peak4 CH4Peak5 CO2Peak1 CO2Peak2 CO2Peak3 CO2Peak4 CO2Peak5'''
             try:
                 #Convert each value into an integer
-                ch4 = int(float(messageParts[4]))
-                co2 = int(float(messageParts[5]))
+                ch4 = int(float(messageParts[2]))
+                co2 = int(float(messageParts[3]))
                 channel = int(messageParts[1])
                 #Store to be used later if needed
                 self.previousCh4[channel] = ch4
@@ -1245,14 +1300,13 @@ class MainWindow(tkinter.Frame):
             self.awaiting = False
 
         #If this is the channels in service being updated
-        if len(messageParts) > 15 and messageParts[0] == "service":
+        if len(messageParts) > 1 and messageParts[0] == "service":
             #Iterate through characters
-            for i in range(0, 15):
-                #If the character is not a 0 then the channel is in service
-                self.currentService[i] = messageParts[i + 1] != "0"
-            #Open the window to display this information
-            #self.openServiceWindow()
-            self.updateServiceDisplays()
+            if len(messageParts[1]) > 14:
+                for i in range(0, 15):
+                    #If the character is not a 0 then the channel is in service
+                    self.currentService[i] = messageParts[1][i] != "0"
+                self.updateServiceDisplays()
             self.awaiting = False
         
         #If this is a message conveying the current calibration data
@@ -1327,7 +1381,7 @@ class MainWindow(tkinter.Frame):
                 if self.connected and self.serialConnection != None:
                     self.sendMessage("timeget\n")
         
-        if len(messageParts) > 2 and messageParts[0] == "sensorTypes":
+        if len(messageParts) > 1 and messageParts[0] == "sensortypes":
             try:
                 self.gasTypes = {}
                 for i in range(1, len(messageParts) - 1, 2):
@@ -1336,7 +1390,7 @@ class MainWindow(tkinter.Frame):
                     self.gasTypes[gasLabel] = sensorAddress
             except:
                 if self.connected and self.serialConnection != None:
-                    self.sendMessage("sensorsget\n")
+                    self.sendMessage("sensorget\n")
             
             menu = self.sensorOption["menu"]
             menu.delete(0, tkinter.END)
@@ -1345,6 +1399,7 @@ class MainWindow(tkinter.Frame):
             for name in self.gasTypes:
                 #Add the gasses to the list
                 menu.add_command(label=name, command=lambda v=self.selectedSensor, l=name: v.set(l))
+                print("Added", name)
             self.selectedSensor.set("None")
 
         if len(messageParts) > 1 and messageParts[0] == "calibration":
@@ -1375,6 +1430,21 @@ class MainWindow(tkinter.Frame):
                 self.percentageDebugLabel.configure(text="Current sensor values: CH4:{0} CO2:{1}".format(ch4Value, co2Value))
             except:
                 pass
+        
+        if len(messageParts) > 7 and messageParts[0] == "recirculateinfo":
+            try:
+                enabled = messageParts[1] == "1"
+                days = int(messageParts[2])
+                hour = int(messageParts[3])
+                minute = int(messageParts[4])
+                year = int(messageParts[5])
+                month = int(messageParts[6])
+                day = int(messageParts[7])
+                self.setRecirculateInfo(enabled, days, [hour, minute], [year, month, day])
+                self.awaiting = False
+            except Exception:
+                print(traceback.format_exc())
+                self.sendMessage("recirculateinfo\n")
 
     def timeDifference(self, year : int, month : int, day : int, hour : int, minute : int, second : int) -> int:
         realTime = datetime.datetime.now().timestamp()
@@ -1450,15 +1520,15 @@ class MainWindow(tkinter.Frame):
             self.displayMessage("Connection Closed", "The connection has been terminated successfully.")
             self.parent.destroy()
 
-    def switchToConfiguring(self) -> None:
+    def switchToSetup(self) -> None:
         '''Change to display the calibration window and alter the button text'''
         if self.connected and self.serialConnection != None:
             self.sendMessage("timeget\n")
-        self.changeMainFrame(2)
+        self.changeMainFrame(1)
 
     def switchToView(self) -> None:
         '''Change to display the view window and alter the button text'''
-        self.changeMainFrame(1)
+        self.changeMainFrame(2)
 
     def startCalibration(self) -> None:
         sensorChosen = self.selectedSensor.get()
@@ -1497,7 +1567,7 @@ class MainWindow(tkinter.Frame):
     def updateTimingPressed(self) -> None:
         '''When the update timings button is pressed'''
         #If there is a connected device and not doing something else
-        if self.connected and self.calibrating and not self.awaiting:
+        if self.connected and not self.logging and not self.awaiting:
             #Get the values from the entries
             enteredOpen = self.openTimeEntry.get()
             enteredFlush = self.flushTimeEntry.get()
@@ -1623,7 +1693,7 @@ class MainWindow(tkinter.Frame):
     def updateService(self) -> None:
         '''When the button is pressed to send the new channel service configuration to the device'''
         #If there is a connected device and not doing something else
-        if self.connected and self.calibrating and not self.awaiting:
+        if self.connected and not self.logging and not self.awaiting:
             self.awaiting = True
             serviceData = ""
             #Iterate through and collect information about the in service state of each channel
@@ -1635,6 +1705,56 @@ class MainWindow(tkinter.Frame):
             #Send data to device
             self.sendMessage("serviceset {0}\n".format(serviceData))
 
+    def setRecirculateInfo(self, enabled, days, time, last) -> None:
+        if not enabled:
+            self.recirculateEnableButton.configure(fg=self.redTextColour, text="Disabled")
+        else:
+            self.recirculateEnableButton.configure(fg=self.greenTextColour, text="Enabled")
+        
+        self.recirculateDaysVariable.set(str(days))
+        self.recirculateHourVariable.set(str(time[0]))
+        self.recirculateMinuteVariable.set(str(time[1]))
+
+        self.recirculateInfo["enabled"] = enabled
+        self.recirculateInfo["days"] = days
+        self.recirculateInfo["time"] = time
+        self.recirculateInfo["last"] = last
+    
+    def toggleRecirculateEnabled(self) -> None:
+        if self.serialConnection != None and not self.awaiting:
+            if self.recirculateInfo["enabled"]:
+                self.sendMessage("recirculatedisable\n")
+            else:
+                self.sendMessage("recirculateenable\n")
+            self.awaiting = True
+    
+    def updateRecirculateTimePressed(self) -> None:
+        if self.serialConnection != None and not self.awaiting:
+            hour = self.recirculateHourVariable.get()
+            minute = self.recirculateMinuteVariable.get()
+            try:
+                hour = int(hour)
+                minute = int(minute)
+                if hour >= 0 and hour < 25 and minute >= 0 and minute < 60:
+                    self.sendMessage("recirculatesettime {0} {1}\n".format(hour, minute))
+                    self.awaiting = True
+                else:
+                    self.displayMessage("Invalid Time", "The time given must be hours and minutes on a 24h clock.")
+            except:
+                self.displayMessage("Invalid Time", "The time values must be integers.")
+    
+    def updateRecirculateDaysPressed(self) -> None:
+        if self.serialConnection != None and not self.awaiting:
+            days = self.recirculateDaysVariable.get()
+            try:
+                days = int(days)
+                if days > 0 and days < 31:
+                    self.sendMessage("recirculatesetdays {0}\n".format(days))
+                    self.awaiting = True
+                else:
+                    self.displayMessage("Invalid Days", "The number must be between 1 and 31")
+            except:
+                self.displayMessage("Invalid Days", "The number of days must be an integer.")
     def updateValveLabel(self) -> None:
         '''Change the valve label to display which valve is currently open'''
         current = -1
@@ -1862,7 +1982,10 @@ class MainWindow(tkinter.Frame):
         """Switch back to the view window from the file view window"""
         if not self.awaiting and not self.downloading:
             #Move frame and clear files
-            self.changeMainFrame(1)
+            if self.logging:
+                self.changeMainFrame(2)
+            else:
+                self.changeMainFrame(1)
             self.setdownFiles()
 
     def setupFiles(self, fileNames : list, first = False) -> None:
@@ -2034,14 +2157,11 @@ class MainWindow(tkinter.Frame):
             if self.currentMain == 0:
                 self.parent.destroy()
             #If on the view screen, disconnect if necessary, otherwise close the whole program
-            elif self.currentMain == 1:
+            elif self.currentMain == 1 or self.currentMain == 2:
                 if self.connected and self.serialConnection != None:
                     self.disconnect()
                 else:
                     self.parent.destroy()
-            #If on the configure screen, trigger normal process to return if possible
-            elif self.currentMain == 2:
-                self.endConfigurePressed()
             #If on the files screen, trigger normal process to return if possible
             elif self.currentMain == 3:
                 self.closeFileView()
